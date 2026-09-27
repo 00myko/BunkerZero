@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dbe2xl5jql7mh"
+path="res://.godot/imported/Missed Swipe 03.ogg-f34d6cde37e87109d82e3df765836a67.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Attacks/Missed Swipe 03.ogg"
+dest_files=["res://.godot/imported/Missed Swipe 03.ogg-f34d6cde37e87109d82e3df765836a67.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

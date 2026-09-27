@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dsv83i3iehtxy"
+path="res://.godot/imported/Final Death Music Cue.mp3-cb51c83efc6fe3f53d0e991f17bff710.mp3str"
+
+[deps]
+
+source_file="res://assets/Audio/Death/Final Death Music Cue.mp3"
+dest_files=["res://.godot/imported/Final Death Music Cue.mp3-cb51c83efc6fe3f53d0e991f17bff710.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

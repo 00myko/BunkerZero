@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://da4lysc780i4"
+path="res://.godot/imported/Pistol Shell Casing.mp3-774b8c748ac4362d04a45ea8c990f3a9.mp3str"
+
+[deps]
+
+source_file="res://assets/Audio/Pistol Layers/Pistol Shell Casing.mp3"
+dest_files=["res://.godot/imported/Pistol Shell Casing.mp3-774b8c748ac4362d04a45ea8c990f3a9.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bp3uyh3i1s6hd"
+path="res://.godot/imported/Shuffle Step.ogg-d0c0c732cdfc5c1cf5b20674292741a4.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Movement/Shuffle Step.ogg"
+dest_files=["res://.godot/imported/Shuffle Step.ogg-d0c0c732cdfc5c1cf5b20674292741a4.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

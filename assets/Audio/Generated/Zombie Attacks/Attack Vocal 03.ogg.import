@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bgcuuubokca4"
+path="res://.godot/imported/Attack Vocal 03.ogg-ab0fa8553e52368a6d3f6fc3d95ee184.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Attacks/Attack Vocal 03.ogg"
+dest_files=["res://.godot/imported/Attack Vocal 03.ogg-ab0fa8553e52368a6d3f6fc3d95ee184.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bsrjv74gkenwf"
+path="res://.godot/imported/Step 01.wav-acdc56c46bdf78132f4db52ecb94b843.sample"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Player Footsteps/Concrete/Step 01.wav"
+dest_files=["res://.godot/imported/Step 01.wav-acdc56c46bdf78132f4db52ecb94b843.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dtrcj6261vlod"
+path="res://.godot/imported/Long Foot Drag.ogg-47ae6f01b22c48c919be39d0b8536b74.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Movement/Long Foot Drag.ogg"
+dest_files=["res://.godot/imported/Long Foot Drag.ogg-47ae6f01b22c48c919be39d0b8536b74.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

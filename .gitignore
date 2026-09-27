@@ -1,0 +1,23 @@
+# Godot 4
+.godot/
+*.translation
+
+# Local junk
+.DS_Store
+*.swp
+*~
+_captures/
+Claude outputs/
+assets/Weapons/Claude outputs/
+
+# iOS / export leftovers
+*.ipa
+*.apk
+*.aab
+*.xcarchive
+export_credentials.cfg
+android/build/
+Packaging.log
+DistributionSummary.plist
+ExportOptions.plist
+Archive.zip

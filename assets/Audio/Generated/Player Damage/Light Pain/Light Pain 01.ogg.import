@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dsyryde8c23gc"
+path="res://.godot/imported/Light Pain 01.ogg-071b77cac4bcb66e599551ed3ed88037.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Player Damage/Light Pain/Light Pain 01.ogg"
+dest_files=["res://.godot/imported/Light Pain 01.ogg-071b77cac4bcb66e599551ed3ed88037.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

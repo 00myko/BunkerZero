@@ -1,0 +1,45 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://dl7pc1w0xmxlq"
+path.s3tc="res://.godot/imported/modular+ceiling+tiles+3d+model_tripo_image_01e559e3-7b20-4ddc-84d2-ed923ef7db98_0_0.jpg-136175dbc64f10d32409ea80eb66384b.s3tc.ctex"
+path.etc2="res://.godot/imported/modular+ceiling+tiles+3d+model_tripo_image_01e559e3-7b20-4ddc-84d2-ed923ef7db98_0_0.jpg-136175dbc64f10d32409ea80eb66384b.etc2.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "dccb57e6bdf2cde7c74868d8603a995a"
+}
+
+[deps]
+
+source_file="res://assets/Concrete Decor/modular+ceiling+tiles+3d+model_tripo_image_01e559e3-7b20-4ddc-84d2-ed923ef7db98_0_0.jpg"
+dest_files=["res://.godot/imported/modular+ceiling+tiles+3d+model_tripo_image_01e559e3-7b20-4ddc-84d2-ed923ef7db98_0_0.jpg-136175dbc64f10d32409ea80eb66384b.s3tc.ctex", "res://.godot/imported/modular+ceiling+tiles+3d+model_tripo_image_01e559e3-7b20-4ddc-84d2-ed923ef7db98_0_0.jpg-136175dbc64f10d32409ea80eb66384b.etc2.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

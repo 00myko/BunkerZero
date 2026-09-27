@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bjb3rn0tmeklj"
+path="res://.godot/imported/Room Cleared.mp3-9df04545a287be7e3793204d284cd1c4.mp3str"
+
+[deps]
+
+source_file="res://assets/Audio/Gameplay Music/Room Cleared.mp3"
+dest_files=["res://.godot/imported/Room Cleared.mp3-9df04545a287be7e3793204d284cd1c4.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

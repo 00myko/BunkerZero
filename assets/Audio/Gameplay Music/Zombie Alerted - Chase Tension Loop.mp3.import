@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dleoh1ko7wikh"
+path="res://.godot/imported/Zombie Alerted - Chase Tension Loop.mp3-1a78fd608e412bae5c527521b7257c94.mp3str"
+
+[deps]
+
+source_file="res://assets/Audio/Gameplay Music/Zombie Alerted - Chase Tension Loop.mp3"
+dest_files=["res://.godot/imported/Zombie Alerted - Chase Tension Loop.mp3-1a78fd608e412bae5c527521b7257c94.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

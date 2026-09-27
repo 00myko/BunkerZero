@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bxsa4ifdwvtyk"
+path="res://.godot/imported/Room 1 - Safe Hub Loop.mp3-e73e812f2d902321b37ce30f4ff651e0.mp3str"
+
+[deps]
+
+source_file="res://assets/Audio/Gameplay Music/Room 1 - Safe Hub Loop.mp3"
+dest_files=["res://.godot/imported/Room 1 - Safe Hub Loop.mp3-e73e812f2d902321b37ce30f4ff651e0.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bop7cp3kink8t"
+path="res://.godot/imported/Player Death Vocal 04.mp3-c5778f66ce3b35f84c068f8e202e3969.mp3str"
+
+[deps]
+
+source_file="res://assets/Audio/Death/Player Death Vocal 04.mp3"
+dest_files=["res://.godot/imported/Player Death Vocal 04.mp3-c5778f66ce3b35f84c068f8e202e3969.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

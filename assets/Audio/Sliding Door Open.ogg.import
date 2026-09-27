@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://cfbnkw7uty7g7"
+path="res://.godot/imported/Sliding Door Open.ogg-50f209a2910350114e68140ad7444961.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Sliding Door Open.ogg"
+dest_files=["res://.godot/imported/Sliding Door Open.ogg-50f209a2910350114e68140ad7444961.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

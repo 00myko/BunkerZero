@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://tgci0x62gxqw"
+path="res://.godot/imported/Low Health Heartbeat.ogg-384c6cd39ec218e7ded42a587e6bbe2f.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Player Damage/Low Health Heartbeat.ogg"
+dest_files=["res://.godot/imported/Low Health Heartbeat.ogg-384c6cd39ec218e7ded42a587e6bbe2f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

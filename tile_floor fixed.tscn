@@ -1,0 +1,51 @@
+[gd_scene format=4 uid="uid://51dxoof2rkjl"]
+
+[ext_resource type="PackedScene" uid="uid://f1cvnu0k640n" path="res://assets/Flooring/Tile Floor.glb" id="1_stdjp"]
+[ext_resource type="Texture2D" uid="uid://bcwb0v8wqjoao" path="res://assets/Flooring/Tile Floor_bunker_zero_optimized_albedo.jpg" id="2_lwqxe"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5xa1s"]
+resource_name = "Bunker_Zero_Consistent_Concrete_Floor"
+cull_mode = 2
+albedo_texture = ExtResource("2_lwqxe")
+metallic = 0.18
+roughness = 0.88
+clearcoat_roughness = 0.75
+texture_filter = 5
+metadata/_gltf_primary_texture_coord = 0
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_60qd3"]
+_surfaces = [{
+"aabb": AABB(-0.49926758, 0, 0.4006444, 0.99853516, 0.9995117, 0.04000002),
+"format": 34896613377,
+"index_count": 36,
+"index_data": PackedByteArray("AAABAAIAAAADAAEAAgABAAQAAwAEAAEABQAAAAIABQADAAAAAgAEAAYABQACAAYAAwAHAAQABQAHAAMABgAEAAcABgAHAAUA"),
+"name": "Bunker_Zero_Consistent_Concrete_Floor",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 8,
+"vertex_data": PackedByteArray("AAAAAP//AAD///////8AAP//AAD//wAAAAD/////AAD/////AAAAAAAAAAAAAAAA//8AAAAAAAAAAP//AAAAAA==")
+}]
+blend_shape_mode = 0
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_7og7j"]
+resource_name = "Tile Floor_Tile Floor Clean"
+_surfaces = [{
+"aabb": AABB(-0.49926758, 0, 0.4006444, 0.99853516, 0.9995117, 0.04000002),
+"attribute_data": PackedByteArray("tbP5Xjr/6xE6//letbPrEbWz+V46/+sROv/5XrWz6xG1s/leOv/rETr/+V61s+sRtbP5Xjr/6xE6//letbPrEbWz+V46/+sROv/5XrWz6xG1s/leOv/rETr/+V61s+sR"),
+"format": 34896613399,
+"index_count": 36,
+"index_data": PackedByteArray("AAABAAIAAAADAAEABAAFAAYABAAHAAUACAAJAAoACAALAAkADAANAA4ADAAPAA0AEAARABIAEAATABEAFAAVABYAFAAXABUA"),
+"material": SubResource("StandardMaterial3D_5xa1s"),
+"name": "Bunker_Zero_Consistent_Concrete_Floor",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 24,
+"vertex_data": PackedByteArray("AAAAAP//AID///////8AgP//AAD//wCAAAD/////AID//wAAAAD//wAA//8AAP//AAAAAAAA////////AAD//wAAAAAAAFTVAAD/////VNUAAAAA//9U1QAA//8AAFTV//8AAP//VNX/////AABU1f//AAAAAFTV////////VNUAAP//////v/////8AAP+//////////78AAP//AAD/vwAAAAAAAP+///8AAP///7///wAAAAD/vwAAAAD///+//3////9/////f////3////9/////f////3////9///9U1VTVVNVU1VTVVNVU1VTVqqpUVaqqVFWqqlRVqqpUVf///3////9/////f////38AAP9/AAD/fwAA/38AAP9/")
+}]
+blend_shape_mode = 0
+shadow_mesh = SubResource("ArrayMesh_60qd3")
+
+[node name="Tile Floor" unique_id=1248815652 instance=ExtResource("1_stdjp")]
+
+[node name="Tile Floor Clean" parent="." index="0" unique_id=724342796]
+mesh = SubResource("ArrayMesh_7og7j")

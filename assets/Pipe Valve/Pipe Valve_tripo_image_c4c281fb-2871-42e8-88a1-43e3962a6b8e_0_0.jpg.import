@@ -1,0 +1,45 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://d2bvh4oed8gbl"
+path.s3tc="res://.godot/imported/Pipe Valve_tripo_image_c4c281fb-2871-42e8-88a1-43e3962a6b8e_0_0.jpg-21ebf348fef2e0050213b2140c5003d6.s3tc.ctex"
+path.etc2="res://.godot/imported/Pipe Valve_tripo_image_c4c281fb-2871-42e8-88a1-43e3962a6b8e_0_0.jpg-21ebf348fef2e0050213b2140c5003d6.etc2.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "1ac0425026adac3f0c11340529e0a2d9"
+}
+
+[deps]
+
+source_file="res://assets/Pipe Valve/Pipe Valve_tripo_image_c4c281fb-2871-42e8-88a1-43e3962a6b8e_0_0.jpg"
+dest_files=["res://.godot/imported/Pipe Valve_tripo_image_c4c281fb-2871-42e8-88a1-43e3962a6b8e_0_0.jpg-21ebf348fef2e0050213b2140c5003d6.s3tc.ctex", "res://.godot/imported/Pipe Valve_tripo_image_c4c281fb-2871-42e8-88a1-43e3962a6b8e_0_0.jpg-21ebf348fef2e0050213b2140c5003d6.etc2.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/uastc_level=0
+compress/rdo_quality_loss=0.0
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/channel_remap/red=0
+process/channel_remap/green=1
+process/channel_remap/blue=2
+process/channel_remap/alpha=3
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

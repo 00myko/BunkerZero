@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dtm4g3e5qwvk4"
+path="res://.godot/imported/Headshot Impact 02.ogg-061da12c463b57b9e1c3b7331302c6e7.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Bullet Impacts/Headshots/Headshot Impact 02.ogg"
+dest_files=["res://.godot/imported/Headshot Impact 02.ogg-061da12c463b57b9e1c3b7331302c6e7.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

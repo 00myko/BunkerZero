@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://beeyoyjltct07"
+path="res://.godot/imported/Step 01.ogg-d00cfb477c7bfdff90f8be1074cd4417.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Player Footsteps/Wet/Step 01.ogg"
+dest_files=["res://.godot/imported/Step 01.ogg-d00cfb477c7bfdff90f8be1074cd4417.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

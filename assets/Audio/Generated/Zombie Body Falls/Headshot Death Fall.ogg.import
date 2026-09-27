@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bhvts7ax4v653"
+path="res://.godot/imported/Headshot Death Fall.ogg-3d0eac0aa13ab8f6de4a6172c00e2112.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Body Falls/Headshot Death Fall.ogg"
+dest_files=["res://.godot/imported/Headshot Death Fall.ogg-3d0eac0aa13ab8f6de4a6172c00e2112.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

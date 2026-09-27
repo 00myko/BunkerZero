@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://ctw2ls72iydov"
+path="res://.godot/imported/Zombie Dying 4.wav-a784edc9b1f7ebba4a99fcc43e0b136f.sample"
+
+[deps]
+
+source_file="res://assets/Audio/Zombie Dying 4.wav"
+dest_files=["res://.godot/imported/Zombie Dying 4.wav-a784edc9b1f7ebba4a99fcc43e0b136f.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

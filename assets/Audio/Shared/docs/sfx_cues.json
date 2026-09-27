@@ -1,0 +1,302 @@
+{
+ "sawnoffs_animated.glb": {
+  "clip": "CINEMA_4D_Main",
+  "length": 5.0,
+  "segments": {
+   "fire_right": [
+    0.0,
+    0.4
+   ],
+   "fire_left": [
+    0.4,
+    0.9
+   ],
+   "reload": [
+    0.9,
+    2.65
+   ],
+   "handle_flourish": [
+    2.65,
+    5.0
+   ]
+  },
+  "events": [
+   {
+    "time": 0.0,
+    "sound": "sawnoff_fire_1.wav",
+    "what": "Right gun fires (trigger1 + recoil)"
+   },
+   {
+    "time": 0.4,
+    "sound": "sawnoff_fire_2.wav",
+    "what": "Left gun fires (trigger1_2 + recoil)"
+   },
+   {
+    "time": 0.97,
+    "sound": "sawnoff_latch_open.wav",
+    "what": "Top-lever release on both guns"
+   },
+   {
+    "time": 1.13,
+    "sound": "sawnoff_break_open.wav",
+    "what": "Barrels break open (front / front_2)"
+   },
+   {
+    "time": 1.25,
+    "sound": "sawnoff_shell_extract.wav",
+    "what": "Extractor pushes shells out (unloader, slug1/2)"
+   },
+   {
+    "time": 1.6,
+    "sound": "shared_shell_drop_1.wav",
+    "what": "Spent shells fall"
+   },
+   {
+    "time": 1.7,
+    "sound": "shared_shell_drop_2.wav",
+    "what": "Spent shells fall (2nd gun)"
+   },
+   {
+    "time": 1.8,
+    "sound": "shared_foley_rustle_1.wav",
+    "what": "Guns tipped up for loading"
+   },
+   {
+    "time": 1.88,
+    "sound": "sawnoff_shell_insert.wav",
+    "what": "Fresh shells seated"
+   },
+   {
+    "time": 2.17,
+    "sound": "sawnoff_break_close.wav",
+    "what": "Barrels snap shut"
+   },
+   {
+    "time": 2.3,
+    "sound": "sawnoff_latch_close.wav",
+    "what": "Top-lever returns"
+   },
+   {
+    "time": 2.8,
+    "sound": "shared_foley_rustle_2.wav",
+    "what": "Handling"
+   },
+   {
+    "time": 4.27,
+    "sound": "sawnoff_flourish_twirl.wav",
+    "what": "Fast twirl/snap of both guns"
+   },
+   {
+    "time": 4.6,
+    "sound": "shared_foley_rustle_3.wav",
+    "what": "Settle"
+   }
+  ]
+ },
+ "crossbow_animated.glb": {
+  "clip": "allanimations",
+  "length": 5.667,
+  "segments": {
+   "fire": [
+    0.0,
+    0.95
+   ],
+   "recock": [
+    0.95,
+    1.6
+   ],
+   "load_bolt": [
+    1.6,
+    2.6
+   ],
+   "idle_handle": [
+    2.6,
+    4.9
+   ],
+   "bash_or_raise": [
+    4.9,
+    5.667
+   ]
+  },
+  "events": [
+   {
+    "time": 0.0,
+    "sound": "crossbow_fire_1.wav",
+    "what": "Trigger + string/bow snap + bolt launched (stick, wire, puller)"
+   },
+   {
+    "time": 0.97,
+    "sound": "crossbow_string_draw_ratchet.wav",
+    "what": "Puller drags string back (cocking)"
+   },
+   {
+    "time": 1.33,
+    "sound": "crossbow_lever_latch.wav",
+    "what": "Loader lever snaps closed"
+   },
+   {
+    "time": 1.7,
+    "sound": "shared_foley_rustle_1.wav",
+    "what": "Hand reaches for bolt"
+   },
+   {
+    "time": 2.1,
+    "sound": "crossbow_bolt_slide_in.wav",
+    "what": "New bolt slid into track, seats at 2.50"
+   },
+   {
+    "time": 2.45,
+    "sound": "crossbow_handling_creak.wav",
+    "what": "Weapon tilt"
+   },
+   {
+    "time": 3.45,
+    "sound": "shared_foley_rustle_2.wav",
+    "what": "Handling"
+   },
+   {
+    "time": 3.65,
+    "sound": "crossbow_handling_creak.wav",
+    "what": "Tilt/inspect"
+   },
+   {
+    "time": 4.98,
+    "sound": "crossbow_bash_swing.wav",
+    "what": "Sharp jab / raise (crossbow rot spike 5.03)"
+   }
+  ]
+ },
+ "knife_animated.glb": {
+  "clip": "anims",
+  "length": 4.833,
+  "segments": {
+   "idle": [
+    0.0,
+    1.3
+   ],
+   "slash_1": [
+    1.3,
+    1.9
+   ],
+   "slash_2": [
+    1.9,
+    2.6
+   ],
+   "inspect_flips": [
+    2.6,
+    4.833
+   ]
+  },
+  "events": [
+   {
+    "time": 1.37,
+    "sound": "knife_swing_1.wav",
+    "what": "Slash 1 (R arm swing)"
+   },
+   {
+    "time": 2.03,
+    "sound": "knife_swing_2.wav",
+    "what": "Slash 2 (fastest arm swing)"
+   },
+   {
+    "time": 2.7,
+    "sound": "knife_flip_1.wav",
+    "what": "Flip to reverse grip (knife 0->180 deg)"
+   },
+   {
+    "time": 2.72,
+    "sound": "knife_swing_3.wav",
+    "what": "Arm swing with flip"
+   },
+   {
+    "time": 3.32,
+    "sound": "knife_flip_2.wav",
+    "what": "Flip back"
+   },
+   {
+    "time": 3.47,
+    "sound": "knife_flip_3.wav",
+    "what": "Flip again"
+   },
+   {
+    "time": 4.03,
+    "sound": "knife_flip_1.wav",
+    "what": "Flip back to forward grip"
+   },
+   {
+    "time": 4.5,
+    "sound": "shared_foley_rustle_1.wav",
+    "what": "Settle"
+   }
+  ]
+ },
+ "minigun_animated.glb": {
+  "clip": "allanims",
+  "length": 6.0,
+  "segments": {
+   "fire_cycle": [
+    0.0,
+    0.2
+   ],
+   "idle": [
+    0.2,
+    2.0
+   ],
+   "reload": [
+    2.0,
+    4.1
+   ],
+   "inspect_rev": [
+    4.1,
+    6.0
+   ]
+  },
+  "events": [
+   {
+    "time": 0.0,
+    "sound": "minigun_fire_loop.wav",
+    "what": "One barrel step (60 deg) + feed lid rattle: loop this segment while firing; play spin_up before / spin_down + fire_tail after"
+   },
+   {
+    "time": 2.03,
+    "sound": "shared_foley_rustle_1.wav",
+    "what": "Hand to box mag"
+   },
+   {
+    "time": 2.43,
+    "sound": "minigun_feed_lid_open.wav",
+    "what": "Feed lid pops"
+   },
+   {
+    "time": 2.47,
+    "sound": "minigun_box_mag_out.wav",
+    "what": "Box mag unlatched & pulled"
+   },
+   {
+    "time": 3.47,
+    "sound": "minigun_box_mag_in.wav",
+    "what": "Mag slammed home (seated 3.57)"
+   },
+   {
+    "time": 3.95,
+    "sound": "minigun_feed_lid_close.wav",
+    "what": "Feed lid closes"
+   },
+   {
+    "time": 4.3,
+    "sound": "minigun_button_click.wav",
+    "what": "Button pressed (spin/inspect)"
+   },
+   {
+    "time": 4.32,
+    "sound": "minigun_spin_up.wav",
+    "what": "Barrels rev (optional)"
+   },
+   {
+    "time": 5.33,
+    "sound": "minigun_heavy_handling_thud.wav",
+    "what": "Heavy jolt / re-grip"
+   }
+  ]
+ }
+}

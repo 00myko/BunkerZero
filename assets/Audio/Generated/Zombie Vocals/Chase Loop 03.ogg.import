@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://b2yhgr8oq1lqo"
+path="res://.godot/imported/Chase Loop 03.ogg-f143172bc7179972a9fb984a2a6b15e3.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Vocals/Chase Loop 03.ogg"
+dest_files=["res://.godot/imported/Chase Loop 03.ogg-f143172bc7179972a9fb984a2a6b15e3.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

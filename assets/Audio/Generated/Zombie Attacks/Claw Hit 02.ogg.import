@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://qyvm5c00a7j4"
+path="res://.godot/imported/Claw Hit 02.ogg-2bf5bb514d59bb1187417d8d3df18bf8.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Attacks/Claw Hit 02.ogg"
+dest_files=["res://.godot/imported/Claw Hit 02.ogg-2bf5bb514d59bb1187417d8d3df18bf8.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

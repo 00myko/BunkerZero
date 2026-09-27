@@ -1,0 +1,14 @@
+V15 ROOM 02 / CLEAN HUD UPDATE
+
+- Removed the ROOM 01 / HEADQUARTERS instruction labels from the normal HUD.
+- Removed the world pistol pickup completely; no pistol is spawned in Room 01.
+- Pistol now auto-equips silently when the player crosses the centered Room 01 south doorway into Room 02 (z <= -4.70).
+- Added Room 02 Operations Bay immediately beyond Room 01.
+  * 28m x 18m: twice Room 01's width and depth.
+  * Reuses the same industrial wall-panel/floor GLBs and existing prop library.
+  * Wide center lane remains clear for future enemies/combat.
+  * Added ceiling, cool bunker lighting, generator, racks, crates, pipe and valve dressing.
+  * Existing GLB collision builder makes the imported Room 02 walls/floor/props solid.
+- Added a polished bottom-left HEALTH HUD with 100 / 100 health.
+- Player now exposes take_damage(amount) and heal(amount) for future zombies/hazards.
+- Preserved V14 FPS viewmodel depth compression, saved placement, recoil, sway, tuning and collision behavior.

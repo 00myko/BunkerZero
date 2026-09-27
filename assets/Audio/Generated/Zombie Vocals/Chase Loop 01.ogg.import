@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://clueaccoaegk6"
+path="res://.godot/imported/Chase Loop 01.ogg-211d1996b7d044ef923df2668927817b.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/Audio/Generated/Zombie Vocals/Chase Loop 01.ogg"
+dest_files=["res://.godot/imported/Chase Loop 01.ogg-211d1996b7d044ef923df2668927817b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

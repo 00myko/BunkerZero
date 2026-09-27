@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://djc72fsoc7hxi"
+path="res://.godot/imported/Pistol Slide Action.mp3-5512cd7a0f69acbd4e6b9121e6835502.mp3str"
+
+[deps]
+
+source_file="res://assets/Audio/Pistol Layers/Pistol Slide Action.mp3"
+dest_files=["res://.godot/imported/Pistol Slide Action.mp3-5512cd7a0f69acbd4e6b9121e6835502.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
