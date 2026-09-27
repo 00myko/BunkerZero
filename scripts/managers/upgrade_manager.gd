@@ -71,12 +71,12 @@ const RELOAD_SCALE: Array[float] = [1.0, 0.96, 0.92, 0.88, 0.84, 0.80]
 ## "live": false = stored and shown, but no combat system reads it yet
 ## (there are no medkits in combat; the board says so instead of faking one).
 const SURVIVOR: Array[Dictionary] = [
-	{"id": "max_health", "name": "MAX HEALTH", "icon": "icon_heart.svg", "unlocked": true, "live": true,
+	{"id": "max_health", "name": "MAX HEALTH", "unlocked": true, "live": true,
 		"values": [100.0, 120.0, 140.0, 170.0, 210.0, 260.0], "format": "%d HP"},
-	{"id": "medkit_heal", "name": "MEDKIT HEAL", "icon": "icon_cross.svg", "unlocked": true, "live": false,
+	{"id": "medkit_heal", "name": "MEDKIT HEAL", "unlocked": true, "live": false,
 		"values": [25.0, 32.0, 40.0, 55.0, 70.0, 85.0], "format": "+%d"},
-	{"id": "medkit_carry", "name": "MEDKIT CARRY", "icon": "icon_cross.svg", "unlocked": true, "live": false,
-		"values": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], "format": "%d KITS"},
+	{"id": "medkit_carry", "name": "MEDKIT CARRY", "unlocked": true, "live": false,
+		"values": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], "format": "%d"},
 	{"id": "throwables", "name": "THROWABLES", "unlocked": false},
 	{"id": "stamina", "name": "STAMINA", "unlocked": false},
 ]
@@ -86,12 +86,13 @@ const SURVIVOR_PRICES: Array[int] = [600, 1400, 2800, 5200, 9000]
 
 const PAYOUT_MULTIPLIERS: Array[float] = [1.0, 1.25, 1.50, 1.85, 2.25, 2.75]
 const PAYOUT_PRICES: Array[int] = [500, 1200, 2500, 5000, 9000]
-## Payout rows. base_reward matches RunManager.TIER_REWARD; add a type here.
+## Payout rows. base_reward matches RunManager.TIER_REWARD; add a type here
+## (optional "icon": a sprite in assets/Game UI Art/Upgrade Tables/).
 const ZOMBIE_TYPES: Array[Dictionary] = [
 	{"id": "basic", "name": "BASIC", "base_reward": 8, "unlocked": true},
 	{"id": "hardened", "name": "HARDENED", "base_reward": 14, "unlocked": true},
 	{"id": "armored", "name": "ARMORED", "base_reward": 22, "unlocked": true},
-	{"id": "elite", "name": "ELITE", "base_reward": 35, "unlocked": true},
+	{"id": "elite", "name": "ELITE", "base_reward": 35, "unlocked": true, "icon": "payout_icon_elite.png"},
 	{"id": "locked_1", "name": "LOCKED", "base_reward": 0, "unlocked": false},
 	{"id": "locked_2", "name": "LOCKED", "base_reward": 0, "unlocked": false},
 	{"id": "locked_3", "name": "LOCKED", "base_reward": 0, "unlocked": false},

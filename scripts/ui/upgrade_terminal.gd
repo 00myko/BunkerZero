@@ -1,48 +1,60 @@
 class_name UpgradeTerminal
 extends Control
 
-## The three hub tables (WEAPON SYSTEMS / SURVIVOR VITALS / ZOMBIE PAYOUT) on a
-## riveted steel plate over the live hub, plus the proximity prompt. Every row
-## is built from UpgradeManager's tables, so a new gun, vitals row or zombie
-## type shows up here with no UI change. World interaction and pausing live in
-## upgrade_ui_controller.gd.
+## The three hub tables drawn as the cleaned reference photos (WEAPON SYSTEMS,
+## SURVIVOR VITALS, ZOMBIE PAYOUT) over the dimmed live hub, plus the
+## proximity prompt. Every live word, number, LED and row comes from
+## UpgradeManager's tables; the photos carry only steel, rivets, slots and the
+## physical CLOSE / INSTALL blocks. Coordinates are photo pixels (PlateUI).
+## World interaction and pausing live in upgrade_ui_controller.gd.
 
 signal prompt_pressed
 signal close_pressed
 signal install_pressed
 
 const TABLES := {
-	"weapon": {"title": "title_weapon_systems.png", "name": "WEAPON SYSTEMS"},
-	"survivor": {"title": "title_survivor_vitals.png", "name": "SURVIVOR VITALS"},
-	"earnings": {"title": "title_zombie_payout.png", "name": "ZOMBIE PAYOUT"},
+	"weapon": "WEAPON SYSTEMS",
+	"survivor": "SURVIVOR VITALS",
+	"earnings": "ZOMBIE PAYOUT",
 }
+const PHOTO := Vector2(1168.0, 784.0)
+## The weapons photo has no title; a header plate sits above it.
+const WEAPON_TOP := 80.0
 
 var interaction_prompt: Button = null
 
 var _overlay: Control = null
 var _stage: Control = null
-var _title: TextureRect = null
-var _bank_value: Label = null
-var _body: Control = null
-var _status: Label = null
-var _status_cost: Label = null
 var _install: Button = null
 var _last_viewport := Vector2.ZERO
+var _refresh_queued := false
 
 var _table := ""
 var _weapon_id := "pistol"
 var _track_id := "damage"
 var _survivor_row := "max_health"
-var _gun_rows: Dictionary = {}
-var _gun_scroll: ScrollContainer = null
-var _refresh_queued := false
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_prompt()
-	_build_overlay()
+	_overlay = Control.new()
+	_overlay.name = "UpgradePopupOverlay"
+	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_overlay.visible = false
+	_overlay.z_index = 900
+	add_child(_overlay)
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.0, 0.0, 0.0, 0.62)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.add_child(dim)
+	_stage = Control.new()
+	_stage.name = "Stage"
+	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.add_child(_stage)
 	EconomyManager.money_changed.connect(func(_b: int) -> void: refresh())
 	UpgradeManager.upgrades_changed.connect(refresh)
 	_layout()
@@ -53,16 +65,20 @@ func _process(_delta: float) -> void:
 		_layout()
 
 
+func _design() -> Vector2:
+	return PHOTO + Vector2(0.0, WEAPON_TOP) if _table == "weapon" else PHOTO
+
+
 func _layout() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	if vp.x <= 0.0 or vp.y <= 0.0:
 		return
 	_last_viewport = vp
-	SteelUI.fit_stage(_stage, vp)
-	var s := minf(vp.x / SteelUI.DESIGN.x, vp.y / SteelUI.DESIGN.y)
+	PlateUI.fit(_stage, _design(), vp)
+	var s := minf(vp.x / PHOTO.x, vp.y / PHOTO.y)
 	interaction_prompt.scale = Vector2(s, s)
-	interaction_prompt.size = Vector2(470.0, 62.0)
-	interaction_prompt.position = Vector2((vp.x - 470.0 * s) * 0.5, vp.y - 138.0 * s)
+	interaction_prompt.size = Vector2(500.0, 62.0)
+	interaction_prompt.position = Vector2((vp.x - 500.0 * s) * 0.5, vp.y - 140.0 * s)
 
 # ------------------------------------------------------------------ public API
 
@@ -77,26 +93,26 @@ func set_prompt_visible(shown: bool, label_text: String = "") -> void:
 
 
 func table_name(table: String) -> String:
-	return String(TABLES.get(table, {}).get("name", "UPGRADE TERMINAL"))
+	return String(TABLES.get(table, "UPGRADE TERMINAL"))
 
 
 func open_popup(table: String = "weapon") -> void:
 	_table = table if TABLES.has(table) else "weapon"
-	_title.texture = SteelUI.tex(SteelUI.ART + String(TABLES[_table]["title"]))
 	if _table == "weapon":
 		var primary := String(RunManager.run_primary_weapon)
-		if not UpgradeManager.get_weapon(primary).is_empty() and bool(UpgradeManager.get_weapon(primary).get("listed", true)):
+		var entry := UpgradeManager.get_weapon(primary)
+		if not entry.is_empty() and bool(entry.get("listed", true)):
 			_weapon_id = primary
 		_pick_first_track()
 	interaction_prompt.visible = false
 	_overlay.visible = true
-	_rebuild_body()
+	_layout()
+	_rebuild()
 
 
 func close_popup() -> void:
 	_overlay.visible = false
-	_clear(_body)
-	_gun_rows.clear()
+	PlateUI.clear(_stage)
 
 
 ## Buys the next rank of whatever row is selected. Returns true on a purchase.
@@ -122,7 +138,7 @@ func refresh() -> void:
 func _do_refresh() -> void:
 	_refresh_queued = false
 	if is_popup_open():
-		_rebuild_body()
+		_rebuild()
 
 # ------------------------------------------------------------------ frame
 
@@ -132,146 +148,230 @@ func _build_prompt() -> void:
 	interaction_prompt.visible = false
 	interaction_prompt.z_index = 850
 	interaction_prompt.focus_mode = Control.FOCUS_NONE
-	interaction_prompt.add_theme_font_override("font", SteelUI.font())
-	interaction_prompt.add_theme_font_size_override("font_size", 24)
-	var face := SteelUI.plate("row_green.png", 14.0, 0.0)
+	interaction_prompt.add_theme_font_override("font", PlateUI.font(PlateUI.BODY))
+	interaction_prompt.add_theme_font_size_override("font_size", 30)
+	var face := StyleBoxTexture.new()
+	face.texture = PlateUI.tex("weapon_gun_bar_selected.png")
+	face.set_texture_margin_all(22.0)
+	face.content_margin_left = 40.0
 	for key in ["normal", "hover", "pressed", "hover_pressed"]:
 		interaction_prompt.add_theme_stylebox_override(key, face)
 	interaction_prompt.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	for key in ["font_color", "font_hover_color", "font_pressed_color"]:
-		interaction_prompt.add_theme_color_override(key, SteelUI.GREEN)
+		interaction_prompt.add_theme_color_override(key, PlateUI.GREEN_PALE)
 	interaction_prompt.pressed.connect(func() -> void: prompt_pressed.emit())
 	add_child(interaction_prompt)
 
 
-func _build_overlay() -> void:
-	_overlay = Control.new()
-	_overlay.name = "UpgradePopupOverlay"
-	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_overlay.visible = false
-	_overlay.z_index = 900
-	add_child(_overlay)
-
-	# Dim, don't hide, the live 3D hub behind the plate.
-	var dim := ColorRect.new()
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.0, 0.02, 0.0, 0.52)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_overlay.add_child(dim)
-
-	_stage = Control.new()
-	_stage.name = "Stage"
-	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_overlay.add_child(_stage)
-
-	var panel := PanelContainer.new()
-	panel.name = "SteelPlate"
-	panel.position = Vector2(20.0, 14.0)
-	panel.size = SteelUI.DESIGN - Vector2(40.0, 28.0)
-	panel.add_theme_stylebox_override("panel", SteelUI.plate("panel_steel.png", 40.0, 34.0))
-	_stage.add_child(panel)
-
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
-	panel.add_child(column)
-
-	# Header: stencil title + bank.
-	var header := HBoxContainer.new()
-	header.custom_minimum_size = Vector2(0.0, 62.0)
-	column.add_child(header)
-	_title = TextureRect.new()
-	_title.name = "Title"
-	_title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_title.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
-	_title.custom_minimum_size = Vector2(560.0, 56.0)
-	_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header.add_child(_title)
-	header.add_child(SteelUI.spacer())
-	var bank := SteelUI.well(10.0)
-	bank.custom_minimum_size = Vector2(250.0, 0.0)
-	header.add_child(bank)
-	var bank_row := HBoxContainer.new()
-	bank_row.add_theme_constant_override("separation", 12)
-	bank.add_child(bank_row)
-	bank_row.add_child(SteelUI.label("BANK", 20, SteelUI.TEXT_DIM))
-	_bank_value = SteelUI.label("$0", 34, SteelUI.AMBER, HORIZONTAL_ALIGNMENT_RIGHT)
-	_bank_value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bank_row.add_child(_bank_value)
-
-	var rule := ColorRect.new()
-	rule.custom_minimum_size = Vector2(0.0, 2.0)
-	rule.color = Color(SteelUI.GREEN.r, SteelUI.GREEN.g, SteelUI.GREEN.b, 0.35)
-	column.add_child(rule)
-
-	_body = Control.new()
-	_body.name = "Body"
-	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(_body)
-
-	# Footer: what INSTALL buys, then CLOSE + INSTALL.
-	var footer := HBoxContainer.new()
-	footer.custom_minimum_size = Vector2(0.0, 64.0)
-	footer.add_theme_constant_override("separation", 16)
-	column.add_child(footer)
-	var status_box := VBoxContainer.new()
-	status_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_box.add_theme_constant_override("separation", 0)
-	status_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	footer.add_child(status_box)
-	_status = SteelUI.label("", 20, SteelUI.TEXT_DIM)
-	status_box.add_child(_status)
-	_status_cost = SteelUI.label("", 30, SteelUI.AMBER)
-	status_box.add_child(_status_cost)
-	var close := SteelUI.action_button("CLOSE", false, Vector2(210.0, 62.0))
-	close.name = "CloseButton"
-	close.pressed.connect(func() -> void: close_pressed.emit())
-	footer.add_child(close)
-	_install = SteelUI.action_button("INSTALL", true, Vector2(250.0, 62.0))
-	_install.name = "InstallButton"
-	_install.pressed.connect(func() -> void: install_pressed.emit())
-	footer.add_child(_install)
-
-
-func _rebuild_body() -> void:
-	var keep_scroll := _gun_scroll.scroll_vertical if is_instance_valid(_gun_scroll) else 0
-	_clear(_body)
-	_gun_rows.clear()
-	_gun_scroll = null
-	_bank_value.text = SteelUI.money(EconomyManager.get_balance())
-	var root: Control
+func _rebuild() -> void:
+	PlateUI.clear(_stage)
+	_install = null
 	match _table:
 		"weapon":
-			root = _build_weapon_screen()
+			_build_weapons()
 		"survivor":
-			root = _build_survivor_screen()
+			_build_vitals()
 		_:
-			root = _build_payout_screen()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_body.add_child(root)
-	if _gun_scroll != null and keep_scroll > 0:
-		_gun_scroll.set_deferred("scroll_vertical", keep_scroll)
+			_build_payout()
 
 
-## cost < 0 means maxed / not applicable; `why` explains that case.
-func _set_footer(caption: String, cost: int, why: String) -> void:
-	if cost < 0:
-		_status.text = caption
-		_status_cost.text = why
-		_status_cost.add_theme_color_override("font_color", SteelUI.GREEN if why == "MAXED" else SteelUI.LOCKED)
-		_install.disabled = true
+func _close() -> void:
+	close_pressed.emit()
+
+
+func _buy() -> void:
+	install_pressed.emit()
+
+
+## Photo INSTALL block; disabled when broke or nothing to buy.
+func _install_block(r: Rect2, cap: float, color: Color, cost: int) -> void:
+	_install = PlateUI.hit(_stage, r, _buy, "INSTALL", cap, color)
+	_install.disabled = cost < 0 or not EconomyManager.can_afford(cost)
+
+# ------------------------------------------------------------------ ZOMBIE PAYOUT
+
+func _build_payout() -> void:
+	PlateUI.sprite(_stage, "payout_plate.png", Rect2(Vector2.ZERO, PHOTO))
+	# Bank badge (coins are in the photo).
+	PlateUI.text(_stage, "BANK", PlateUI.BODY, 17.0, 233.0, 59.0)
+	PlateUI.text(_stage, PlateUI.money(EconomyManager.get_balance()), PlateUI.BODY, 22.0, 233.0, 84.0, PlateUI.AMBER, HORIZONTAL_ALIGNMENT_LEFT, 88.0)
+	PlateUI.text(_stage, "ZOMBIE PAYOUT", PlateUI.TITLE, 63.0, 607.0, 47.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_CENTER, 0.0, true)
+	PlateUI.text(_stage, "CREDIT RECOVERY MULTIPLIER", PlateUI.BODY, 21.0, 604.0, 122.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+
+	# Seven recessed rows in the photo; types fill them in table order.
+	var rows := [159.0, 204.0, 248.0, 292.0, 336.0, 379.0, 423.0]
+	var types := UpgradeManager.ZOMBIE_TYPES
+	for i in rows.size():
+		if i >= types.size():
+			break
+		var entry: Dictionary = types[i]
+		var top: float = rows[i]
+		var unlocked := bool(entry.get("unlocked", false))
+		var icon := "payout_icon_lock.png"
+		if unlocked:
+			icon = String(entry.get("icon", "payout_icon_skull.png"))
+		PlateUI.sprite(_stage, icon, Rect2(211.0, top + 2.0, 40.0, 38.0), Color.WHITE if unlocked else Color(0.8, 0.8, 0.8))
+		var word := String(entry.get("name", "")) if unlocked else "LOCKED"
+		var name_label := PlateUI.text(_stage, word + (":" if unlocked else ""), PlateUI.BODY, 21.0, 268.0, top + 12.0,
+			PlateUI.OFF_WHITE if unlocked else PlateUI.DIM)
+		_leader(name_label.position.x + name_label.size.x + 8.0, 858.0, top + 31.0)
+		var value := PlateUI.money(UpgradeManager.get_zombie_reward(String(entry["id"]))) if unlocked else "---"
+		PlateUI.text(_stage, value, PlateUI.BODY, 22.0, 948.0, top + 12.0, PlateUI.AMBER if unlocked else PlateUI.DIM, HORIZONTAL_ALIGNMENT_RIGHT)
+
+	# Multiplier pills: one per rank in the table, current lit, next outlined.
+	PlateUI.text(_stage, "MULTIPLIER", PlateUI.BODY, 18.0, 193.0, 490.0)
+	var mults := UpgradeManager.PAYOUT_MULTIPLIERS
+	var rank := UpgradeManager.get_payout_rank()
+	var left := 193.0
+	var right := 982.0
+	var gap := 32.0
+	var pill_w := (right - left - gap * (mults.size() - 1)) / mults.size()
+	for i in mults.size():
+		var x := left + i * (pill_w + gap)
+		var state := "dim"
+		var ink := Color(PlateUI.OFF_WHITE.r, PlateUI.OFF_WHITE.g, PlateUI.OFF_WHITE.b, 0.85)
+		if i == rank:
+			state = "lit"
+			ink = PlateUI.GREEN_PALE
+		elif i == rank + 1:
+			state = "next"
+			ink = PlateUI.GREEN
+		PlateUI.sprite(_stage, "payout_pill_%s.png" % state, Rect2(x, 515.0, pill_w, 49.0))
+		PlateUI.text(_stage, "%.2fx" % mults[i], PlateUI.BODY, 21.0, x + pill_w * 0.5, 529.0, ink, HORIZONTAL_ALIGNMENT_CENTER)
+		if i < mults.size() - 1:
+			PlateUI.sprite(_stage, "payout_arrow.png", Rect2(x + pill_w + 3.0, 526.0, 26.0, 26.0))
+
+	var cost := UpgradeManager.get_payout_cost()
+	PlateUI.text(_stage, "UPGRADE COST", PlateUI.BODY, 19.0, 193.0, 589.0)
+	PlateUI.text(_stage, PlateUI.money(cost) if cost >= 0 else "MAXED", PlateUI.BODY, 30.0, 377.0, 583.0,
+		PlateUI.AMBER if cost >= 0 else PlateUI.GREEN)
+	PlateUI.hit(_stage, Rect2(189.0, 625.0, 345.0, 101.0), _close, "CLOSE", 48.0)
+	_install_block(Rect2(596.0, 620.0, 389.0, 106.0), 50.0, PlateUI.OFF_WHITE, cost)
+
+
+## Dotted leader from a row name to the value column.
+func _leader(x0: float, x1: float, y: float) -> void:
+	if x1 - x0 < 12.0:
 		return
-	var short := cost - EconomyManager.get_balance()
-	_status.text = caption if short <= 0 else "%s  //  NEED %s MORE" % [caption, SteelUI.money(short)]
-	_status_cost.text = SteelUI.money(cost)
-	_status_cost.add_theme_color_override("font_color", SteelUI.AMBER)
-	_install.disabled = short > 0
+	var dots := Control.new()
+	dots.position = Vector2(x0, y)
+	dots.size = Vector2(x1 - x0, 2.0)
+	dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dots.draw.connect(func() -> void:
+		var x := 0.0
+		while x < dots.size.x:
+			dots.draw_rect(Rect2(x, 0.0, 2.0, 2.0), Color(0.78, 0.77, 0.72, 0.55))
+			x += 5.0)
+	_stage.add_child(dots)
+
+# ------------------------------------------------------------------ SURVIVOR VITALS
+
+## The photo's five row slots (top, bottom); tall slots have room for the
+## captioned CURRENT / NEXT layout, short ones use the one-line layout.
+const VITAL_SLOTS := [[117.0, 232.0], [236.0, 338.0], [340.0, 435.0], [438.0, 505.0], [507.0, 575.0]]
+
+func _build_vitals() -> void:
+	PlateUI.sprite(_stage, "vitals_plate.png", Rect2(Vector2.ZERO, PHOTO))
+	PlateUI.text(_stage, "SURVIVOR VITALS", PlateUI.TITLE, 57.0, 170.0, 40.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_LEFT, 480.0, true)
+	PlateUI.text(_stage, PlateUI.money(EconomyManager.get_balance()), PlateUI.BODY, 36.0, 998.0, 53.0, PlateUI.AMBER, HORIZONTAL_ALIGNMENT_RIGHT)
+
+	var rows := UpgradeManager.SURVIVOR
+	if not bool(UpgradeManager.get_survivor_row(_survivor_row).get("unlocked", false)):
+		_survivor_row = String(rows[0]["id"])
+	for i in VITAL_SLOTS.size():
+		if i >= rows.size():
+			break
+		var entry: Dictionary = rows[i]
+		var top: float = VITAL_SLOTS[i][0]
+		var bottom: float = VITAL_SLOTS[i][1]
+		var unlocked := bool(entry.get("unlocked", false))
+		if unlocked:
+			PlateUI.hit(_stage, Rect2(150.0, top, 870.0, bottom - top), _select_survivor.bind(String(entry["id"])))
+		if bottom - top >= 90.0 and unlocked:
+			_vital_tall(entry, top, bottom)
+		else:
+			_vital_short(entry, top, unlocked)
+
+	PlateUI.hit(_stage, Rect2(147.0, 662.0, 245.0, 78.0), _close, "CLOSE", 38.0)
+	_install_block(Rect2(733.0, 663.0, 284.0, 79.0), 38.0, PlateUI.GREEN, UpgradeManager.get_survivor_cost(_survivor_row))
 
 
-func _clear(node: Node) -> void:
-	for child in node.get_children():
-		node.remove_child(child)
-		child.queue_free()
+func _vital_values(entry: Dictionary) -> Array:
+	var id := String(entry["id"])
+	var rank := UpgradeManager.get_survivor_rank(id)
+	var fmt := String(entry.get("format", "%d"))
+	var now := fmt % int(UpgradeManager.get_survivor_value(id, rank))
+	var nxt := "MAX" if rank >= UpgradeManager.MAX_RANK else fmt % int(UpgradeManager.get_survivor_value(id, rank + 1))
+	return [rank, now, nxt]
+
+
+func _vital_tall(entry: Dictionary, top: float, bottom: float) -> void:
+	var id := String(entry["id"])
+	var selected := id == _survivor_row
+	var v := _vital_values(entry)
+	var rank: int = v[0]
+	PlateUI.text(_stage, String(entry["name"]), PlateUI.BODY, 26.0, 175.0, top + 14.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_LEFT, 350.0)
+	PlateUI.text(_stage, "CURRENT", PlateUI.BODY, 16.0, 218.0, top + 57.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	PlateUI.text(_stage, v[1], PlateUI.BODY, 25.0, 222.0, top + 79.0, PlateUI.GREEN, HORIZONTAL_ALIGNMENT_CENTER, 150.0)
+	PlateUI.sprite(_stage, "vitals_arrow.png", Rect2(304.0, top + 67.0, 60.0, 30.0))
+	PlateUI.text(_stage, "NEXT", PlateUI.BODY, 16.0, 436.0, top + 57.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	PlateUI.text(_stage, v[2], PlateUI.BODY, 25.0, 440.0, top + 79.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_CENTER, 150.0)
+
+	PlateUI.text(_stage, "LEVEL", PlateUI.BODY, 17.0, 582.0, top + 15.0)
+	if selected:
+		_leds(rank, 593.0, top + 60.0, 22.0, 42.0, true)
+		var cost := UpgradeManager.get_survivor_cost(id)
+		PlateUI.text(_stage, "COST", PlateUI.BODY, 17.0, 828.0, top + 16.0)
+		PlateUI.text(_stage, PlateUI.money(cost) if cost >= 0 else "MAXED", PlateUI.BODY, 27.0, 828.0, top + 46.0,
+			PlateUI.AMBER if cost >= 0 else PlateUI.GREEN)
+		# Small INSTALL on the selected row, as on the photo's first row.
+		var r := Rect2(809.0, top + 86.0, 197.0, 63.0)
+		PlateUI.sprite(_stage, "vitals_install_small.png", Rect2(r.position - Vector2(3.0, 3.0), Vector2(204.0, 72.0)))
+		var small := PlateUI.hit(_stage, r, _buy, "INSTALL", 25.0, PlateUI.GREEN)
+		small.disabled = cost < 0 or not EconomyManager.can_afford(cost)
+	else:
+		PlateUI.text(_stage, "%d/5" % rank, PlateUI.BODY, 24.0, 582.0, top + 35.0, PlateUI.GREEN)
+		_leds(rank, 593.0, bottom - 20.0, 22.0, 42.0, false)
+
+
+## Locked rows (and live rows in a short slot): name + LOCKED on the left,
+## CURRENT -> NEXT -> LEVEL n/5 in one line on the right.
+func _vital_short(entry: Dictionary, top: float, unlocked: bool) -> void:
+	var ink := PlateUI.OFF_WHITE if unlocked else PlateUI.DIM
+	var name_label := PlateUI.text(_stage, String(entry["name"]), PlateUI.BODY, 22.0, 175.0, top + 13.0, ink)
+	var now := "--"
+	var nxt := "--"
+	var rank := 0
+	if unlocked:
+		var v := _vital_values(entry)
+		rank = v[0]
+		now = v[1]
+		nxt = v[2]
+	else:
+		PlateUI.text(_stage, "LOCKED", PlateUI.BODY, 14.0, 176.0, top + 44.0, PlateUI.DIM)
+		PlateUI.sprite(_stage, "vitals_icon_lock.png", Rect2(name_label.position.x + name_label.size.x + 22.0, top + 6.0, 40.0, 50.0))
+	PlateUI.text(_stage, "CURRENT", PlateUI.BODY, 15.0, 580.0, top + 13.0, ink)
+	PlateUI.text(_stage, now, PlateUI.BODY, 18.0, 580.0, top + 39.0, PlateUI.GREEN if unlocked else PlateUI.DIM)
+	PlateUI.sprite(_stage, "vitals_arrow.png", Rect2(675.0, top + 30.0, 36.0, 18.0), Color(1, 1, 1, 0.6))
+	PlateUI.text(_stage, "NEXT", PlateUI.BODY, 15.0, 733.0, top + 13.0, ink)
+	PlateUI.text(_stage, nxt, PlateUI.BODY, 18.0, 733.0, top + 39.0, ink)
+	PlateUI.sprite(_stage, "vitals_arrow.png", Rect2(797.0, top + 30.0, 36.0, 18.0), Color(1, 1, 1, 0.6))
+	PlateUI.text(_stage, "LEVEL %d/5" % rank, PlateUI.BODY, 15.0, 848.0, top + 13.0, ink)
+	_leds(rank, 856.0, top + 47.0, 16.0, 24.0, false)
+
+
+## Five round LEDs; `numbered` prints 1..5 underneath.
+func _leds(rank: int, x0: float, cy: float, d: float, pitch: float, numbered: bool) -> void:
+	for i in UpgradeManager.MAX_RANK:
+		var cx := x0 + i * pitch
+		PlateUI.sprite(_stage, "vitals_led_on.png" if i < rank else "vitals_led_off.png", Rect2(cx - d * 0.5, cy - d * 0.5, d, d))
+		if numbered:
+			PlateUI.text(_stage, str(i + 1), PlateUI.BODY, 17.0, cx, cy + d * 0.5 + 12.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+func _select_survivor(row_id: String) -> void:
+	_survivor_row = row_id
+	_rebuild()
 
 # ------------------------------------------------------------------ WEAPON SYSTEMS
 
@@ -284,368 +384,119 @@ func _pick_first_track() -> void:
 			return
 
 
-func _build_weapon_screen() -> Control:
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 16)
+func _build_weapons() -> void:
+	var y0 := WEAPON_TOP
+	# Title plate (the photo has none) above the board.
+	var hdr_w := 520.0
+	PlateUI.sprite(_stage, "weapon_header.png", Rect2((PHOTO.x - hdr_w) * 0.5, 4.0, hdr_w, 70.0))
+	PlateUI.text(_stage, "WEAPON SYSTEMS", PlateUI.TITLE, 34.0, PHOTO.x * 0.5, 21.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_CENTER, 0.0, true)
+	PlateUI.sprite(_stage, "weapon_plate.png", Rect2(0.0, y0, PHOTO.x, PHOTO.y))
 
-	# Left: riveted gun list, selected = green bar.
-	var list_well := SteelUI.well(10.0)
-	list_well.custom_minimum_size = Vector2(300.0, 0.0)
-	list_well.mouse_filter = Control.MOUSE_FILTER_PASS
-	h.add_child(list_well)
-	_gun_scroll = ScrollContainer.new()
-	_gun_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	list_well.add_child(_gun_scroll)
-	var list := VBoxContainer.new()
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 3)
-	_gun_scroll.add_child(list)
-	for gun in UpgradeManager.listed_weapons():
-		var id := String(gun["id"])
-		var row := SteelUI.row_button(40.0)
-		SteelUI.set_row_selected(row, id == _weapon_id)
-		row.pressed.connect(_select_weapon.bind(id))
-		var c := SteelUI.row_content(row, 40.0, 22.0)
-		c.add_child(SteelUI.label(String(gun["name"]), 22, SteelUI.GREEN if id == _weapon_id else SteelUI.TEXT_LIGHT))
-		c.add_child(SteelUI.spacer())
-		c.add_child(SteelUI.label("LV %d" % UpgradeManager.get_weapon_tier(id), 18, SteelUI.GREEN_SOFT if id == _weapon_id else SteelUI.TEXT_DIM))
-		list.add_child(row)
-		_gun_rows[id] = row
+	# Gun list: one riveted bar per listed gun, filling the photo's column.
+	var guns := UpgradeManager.listed_weapons()
+	var col_top := 24.0 + y0
+	var col_h := 599.0
+	var gap := 5.0
+	var bar_h := (col_h - gap * (guns.size() - 1)) / maxf(guns.size(), 1)
+	for i in guns.size():
+		var id := String(guns[i]["id"])
+		var selected := id == _weapon_id
+		var r := Rect2(25.0, col_top + i * (bar_h + gap), 292.0, bar_h)
+		PlateUI.plate(_stage, "weapon_gun_bar_selected.png" if selected else "weapon_gun_bar.png", r, Vector4(30, 20, 30, 20))
+		var cap := minf(26.0, bar_h * 0.43)
+		PlateUI.text(_stage, String(guns[i]["name"]), PlateUI.BODY, cap, 69.0, r.position.y + (bar_h - cap) * 0.5,
+			PlateUI.GREEN if selected else PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_LEFT, 214.0)
+		PlateUI.hit(_stage, r, _select_weapon.bind(id))
 
-	# Right: gun plate + live stats, then the five tracks.
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 8)
-	h.add_child(right)
+	# Gun plate: name, subtitle, photo in the dark well, live stats.
 	var gun := UpgradeManager.get_weapon(_weapon_id)
-
-	var top := HBoxContainer.new()
-	top.custom_minimum_size = Vector2(0.0, 168.0)
-	top.add_theme_constant_override("separation", 12)
-	right.add_child(top)
-	var plate := SteelUI.well(12.0)
-	plate.custom_minimum_size = Vector2(390.0, 0.0)
-	top.add_child(plate)
-	var plate_v := VBoxContainer.new()
-	plate_v.add_theme_constant_override("separation", 0)
-	plate.add_child(plate_v)
+	PlateUI.text(_stage, String(gun.get("name", _weapon_id.to_upper())), PlateUI.TITLE, 37.0, 540.0, 43.0 + y0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_LEFT, 340.0, true)
+	PlateUI.text(_stage, String(gun.get("subtitle", "")), PlateUI.BODY, 17.0, 540.0, 93.0 + y0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_LEFT, 340.0)
 	var art := TextureRect.new()
-	art.texture = SteelUI.tex("res://assets/UI/weapon_%s.png" % _weapon_id)
+	art.texture = PlateUI.tex("res://assets/UI/weapon_%s.png" % _weapon_id)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	art.position = Vector2(550.0, 130.0 + y0)
+	art.size = Vector2(314.0, 158.0)
+	art.modulate = Color(1.45, 1.42, 1.38)
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate_v.add_child(art)
-	plate_v.add_child(SteelUI.label(String(gun.get("name", _weapon_id.to_upper())), 30, SteelUI.GREEN))
-	plate_v.add_child(SteelUI.label(String(gun.get("subtitle", "")), 17, SteelUI.TEXT_DIM))
-
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	top.add_child(grid)
+	_stage.add_child(art)
 	var stats := [
 		["DMG", "%.0f" % UpgradeManager.get_weapon_damage(_weapon_id)],
 		["MAG", "%d" % UpgradeManager.get_weapon_mag(_weapon_id)],
-		["RATE", "%.0f RPM" % (60.0 / UpgradeManager.get_weapon_shot_interval(_weapon_id))],
+		["RATE", "%.0f" % (60.0 / UpgradeManager.get_weapon_shot_interval(_weapon_id))],
 		["RELOAD", _reload_text(UpgradeManager.get_weapon_reload_time(_weapon_id))],
 	]
-	for stat in stats:
-		var cell := SteelUI.well(10.0)
-		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		var cell_h := HBoxContainer.new()
-		cell.add_child(cell_h)
-		cell_h.add_child(SteelUI.label(stat[0], 20, SteelUI.TEXT_DIM))
-		cell_h.add_child(SteelUI.spacer())
-		cell_h.add_child(SteelUI.label(stat[1], 32, SteelUI.TEXT_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT))
-		grid.add_child(cell)
+	for i in stats.size():
+		var cy := 131.0 + i * 40.7 + y0
+		PlateUI.text(_stage, stats[i][0], PlateUI.BODY, 21.0, 902.0, cy, PlateUI.GREEN)
+		PlateUI.text(_stage, stats[i][1], PlateUI.BODY, 23.0, 1025.0, cy - 1.0, PlateUI.OFF_WHITE, HORIZONTAL_ALIGNMENT_LEFT, 105.0)
 
-	for track in UpgradeManager.TRACKS:
-		right.add_child(_weapon_track_row(track))
+	# Tracks: UPGRADES / OWNED, then one row per track.
+	PlateUI.text(_stage, "UPGRADES", PlateUI.BODY, 22.0, 537.0, 326.0 + y0)
+	PlateUI.text(_stage, "OWNED", PlateUI.BODY, 22.0, 1093.0, 326.0 + y0, PlateUI.GREEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	var tracks := UpgradeManager.TRACKS
+	var row_top := 359.0 + y0
+	var row_pitch := 247.0 / maxf(tracks.size(), 1)
+	for i in tracks.size():
+		_track_row(tracks[i], Rect2(529.0, row_top + i * row_pitch, 594.0, row_pitch - 5.0))
 
-	var track_name := _track_name(_track_id)
-	var cost := UpgradeManager.get_weapon_track_cost(_weapon_id, _track_id)
-	var maxed := UpgradeManager.get_weapon_rank(_weapon_id, _track_id) >= UpgradeManager.MAX_RANK
-	_set_footer("%s  //  %s  RANK %d" % [String(gun.get("name", "")), track_name,
-		mini(UpgradeManager.get_weapon_rank(_weapon_id, _track_id) + 1, UpgradeManager.MAX_RANK)],
-		cost, "MAXED" if maxed else "N/A FOR THIS GUN")
-	return h
+	# Bottom bar.
+	PlateUI.text(_stage, "PLAYER BANK", PlateUI.BODY, 20.0, 59.0, 670.0 + y0, PlateUI.GREEN)
+	PlateUI.text(_stage, PlateUI.money(EconomyManager.get_balance()), PlateUI.BODY, 35.0, 59.0, 703.0 + y0, PlateUI.AMBER, HORIZONTAL_ALIGNMENT_LEFT, 370.0)
+	PlateUI.hit(_stage, Rect2(446.0, 662.0 + y0, 280.0, 86.0), _close, "CLOSE", 37.0, PlateUI.INK)
+	_install_block(Rect2(836.0, 662.0 + y0, 297.0, 86.0), 37.0, PlateUI.INK,
+		UpgradeManager.get_weapon_track_cost(_weapon_id, _track_id))
 
 
-func _weapon_track_row(track: Dictionary) -> Control:
+func _track_row(track: Dictionary, r: Rect2) -> void:
 	var id := String(track["id"])
 	var available := UpgradeManager.is_track_available(_weapon_id, id)
 	var rank := UpgradeManager.get_weapon_rank(_weapon_id, id)
+	var maxed := rank >= UpgradeManager.MAX_RANK
 	var selected := available and id == _track_id
-	var row := SteelUI.row_button(52.0)
-	SteelUI.set_row_selected(row, selected)
-	row.disabled = not available
-	if available:
-		row.pressed.connect(_select_track.bind(id))
-	var c := SteelUI.row_content(row)
-	var name_label := SteelUI.label(String(track["name"]), 24, SteelUI.GREEN if selected else (SteelUI.TEXT_LIGHT if available else SteelUI.LOCKED))
-	name_label.custom_minimum_size = Vector2(190.0, 0.0)
-	c.add_child(name_label)
-	c.add_child(SteelUI.pips(rank, UpgradeManager.MAX_RANK, Vector2(26.0, 14.0), not available, selected))
-	var value := SteelUI.label("", 24, SteelUI.TEXT_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT)
-	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var cost_label := SteelUI.label("", 24, SteelUI.AMBER, HORIZONTAL_ALIGNMENT_RIGHT)
-	cost_label.custom_minimum_size = Vector2(110.0, 0.0)
+	PlateUI.plate(_stage, "weapon_track_row_selected.png" if selected else "weapon_track_row.png", r, Vector4(30, 12, 30, 12))
+	var cy := r.position.y + r.size.y * 0.5
+	PlateUI.text(_stage, String(track["name"]), PlateUI.BODY, 20.0, 558.0, cy - 10.0,
+		PlateUI.GREEN if selected else (PlateUI.OFF_WHITE if available else PlateUI.DIM))
 	if not available:
-		value.text = "N/A"
-		value.add_theme_color_override("font_color", SteelUI.LOCKED)
-		cost_label.text = "LOCKED"
-		cost_label.add_theme_color_override("font_color", SteelUI.LOCKED)
+		# Locked: lock box, no price, no bar.
+		PlateUI.sprite(_stage, "weapon_lock_box.png", Rect2(946.0, cy - 24.0, 54.0, 48.0))
+		return
+	PlateUI.hit(_stage, r, _select_track.bind(id))
+	if selected and not maxed:
+		_segments(rank, Rect2(783.0, cy - 11.0, 150.0, 22.0))
+		PlateUI.sprite(_stage, "weapon_check_box.png", Rect2(946.0, cy - 24.0, 54.0, 48.0))
+		PlateUI.text(_stage, PlateUI.money(UpgradeManager.get_weapon_track_cost(_weapon_id, id)), PlateUI.BODY, 24.0, 1101.0, cy - 12.0,
+			PlateUI.AMBER, HORIZONTAL_ALIGNMENT_RIGHT, 100.0)
 	else:
-		var now := _track_value(id, rank)
-		if rank >= UpgradeManager.MAX_RANK:
-			value.text = now
-			cost_label.text = "MAX"
-			cost_label.add_theme_color_override("font_color", SteelUI.GREEN)
+		_segments(rank, Rect2(783.0, cy - 11.0, 309.0, 22.0))
+
+
+## Segmented LED bar: `rank` of MAX_RANK segments lit.
+func _segments(rank: int, r: Rect2) -> void:
+	var n := UpgradeManager.MAX_RANK
+	var gap := 4.0
+	var w := (r.size.x - gap * (n - 1)) / n
+	for i in n:
+		var s := Rect2(r.position.x + i * (w + gap), r.position.y, w, r.size.y)
+		if i < rank:
+			PlateUI.sprite(_stage, "weapon_seg_on.png", s)
 		else:
-			value.text = "%s  >  %s" % [now, _track_value(id, rank + 1)]
-			cost_label.text = SteelUI.money(UpgradeManager.get_weapon_track_cost(_weapon_id, id))
-	c.add_child(value)
-	c.add_child(cost_label)
-	return row
-
-
-func _track_value(track_id: String, rank: int) -> String:
-	var v := UpgradeManager.get_weapon_stat_at(_weapon_id, track_id, rank)
-	match track_id:
-		"rate":
-			return "%.0f RPM" % v
-		"reload":
-			return _reload_text(v)
-	return "%.0f" % v
+			PlateUI.rect(_stage, s, Color(0.02, 0.025, 0.02, 0.55), Color(0.30, 0.33, 0.28, 0.45), 1)
 
 
 func _reload_text(seconds: float) -> String:
 	var per_shell := bool(UpgradeManager.get_weapon(_weapon_id).get("per_shell", false))
-	return "%.2fs%s" % [seconds, "/SH" if per_shell else ""]
-
-
-func _track_name(track_id: String) -> String:
-	for track in UpgradeManager.TRACKS:
-		if track["id"] == track_id:
-			return String(track["name"])
-	return track_id.to_upper()
+	return "%.1fs%s" % [seconds, "/sh" if per_shell else ""]
 
 
 func _select_weapon(weapon_id: String) -> void:
 	_weapon_id = weapon_id
 	_pick_first_track()
-	_rebuild_body()
+	_rebuild()
 
 
 func _select_track(track_id: String) -> void:
 	_track_id = track_id
-	_rebuild_body()
-
-# ------------------------------------------------------------------ SURVIVOR VITALS
-
-func _build_survivor_screen() -> Control:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
-	var selected_row := UpgradeManager.get_survivor_row(_survivor_row)
-	if not bool(selected_row.get("unlocked", false)):
-		_survivor_row = String(UpgradeManager.SURVIVOR[0]["id"])
-		selected_row = UpgradeManager.SURVIVOR[0]
-	for entry in UpgradeManager.SURVIVOR:
-		v.add_child(_survivor_row_control(entry))
-
-	var note := SteelUI.well(12.0)
-	note.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(note)
-	var note_text := SteelUI.label("", 20, SteelUI.TEXT_DIM)
-	note_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	note_text.text = _survivor_note(selected_row)
-	note.add_child(note_text)
-
-	var rank := UpgradeManager.get_survivor_rank(_survivor_row)
-	_set_footer("%s  RANK %d" % [String(selected_row["name"]), mini(rank + 1, UpgradeManager.MAX_RANK)],
-		UpgradeManager.get_survivor_cost(_survivor_row), "MAXED")
-	return v
-
-
-func _survivor_row_control(entry: Dictionary) -> Control:
-	var id := String(entry["id"])
-	var unlocked := bool(entry.get("unlocked", false))
-	var selected := unlocked and id == _survivor_row
-	var rank := UpgradeManager.get_survivor_rank(id)
-	var row := SteelUI.row_button(66.0)
-	SteelUI.set_row_selected(row, selected)
-	row.disabled = not unlocked
-	if unlocked:
-		row.pressed.connect(_select_survivor.bind(id))
-	var c := SteelUI.row_content(row)
-	var tint := SteelUI.GREEN if selected else (SteelUI.TEXT_LIGHT if unlocked else SteelUI.LOCKED)
-	c.add_child(SteelUI.icon(String(entry.get("icon", "icon_lock.svg")) if unlocked else "icon_lock.svg", 38.0, tint if unlocked else SteelUI.LOCKED))
-	var name_label := SteelUI.label(String(entry["name"]), 28, tint)
-	name_label.custom_minimum_size = Vector2(230.0, 0.0)
-	c.add_child(name_label)
-	c.add_child(SteelUI.pips(rank, UpgradeManager.MAX_RANK, Vector2(30.0, 16.0), not unlocked, selected))
-	var value := SteelUI.label("", 26, SteelUI.TEXT_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT)
-	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var tag := SteelUI.label("", 18, SteelUI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
-	tag.custom_minimum_size = Vector2(130.0, 0.0)
-	var cost_label := SteelUI.label("", 26, SteelUI.AMBER, HORIZONTAL_ALIGNMENT_RIGHT)
-	cost_label.custom_minimum_size = Vector2(120.0, 0.0)
-	if not unlocked:
-		value.text = "--"
-		value.add_theme_color_override("font_color", SteelUI.LOCKED)
-		tag.text = "LOCKED"
-		tag.add_theme_color_override("font_color", SteelUI.LOCKED)
-		cost_label.text = "--"
-		cost_label.add_theme_color_override("font_color", SteelUI.LOCKED)
-	else:
-		var fmt := String(entry.get("format", "%d"))
-		var now := fmt % int(UpgradeManager.get_survivor_value(id, rank))
-		if rank >= UpgradeManager.MAX_RANK:
-			value.text = now
-			cost_label.text = "MAX"
-			cost_label.add_theme_color_override("font_color", SteelUI.GREEN)
-		else:
-			value.text = "%s  >  %s" % [now, fmt % int(UpgradeManager.get_survivor_value(id, rank + 1))]
-			cost_label.text = SteelUI.money(UpgradeManager.get_survivor_cost(id))
-		var live := bool(entry.get("live", false))
-		tag.text = "IN COMBAT" if live else "STORED"
-		tag.add_theme_color_override("font_color", SteelUI.GREEN_SOFT if live else SteelUI.TEXT_DIM)
-	c.add_child(value)
-	c.add_child(tag)
-	c.add_child(cost_label)
-	return row
-
-
-func _survivor_note(entry: Dictionary) -> String:
-	if bool(entry.get("live", false)):
-		return "%s  //  APPLIES TO EVERY RUN FROM THE NEXT SPAWN. RANKS ARE PERMANENT." % String(entry["name"])
-	return "%s  //  STORED RANK. THERE ARE NO MEDKITS IN COMBAT YET; THIS VALUE IS SAVED AND APPLIES WHEN THEY SHIP." % String(entry["name"])
-
-
-func _select_survivor(row_id: String) -> void:
-	_survivor_row = row_id
-	_rebuild_body()
-
-# ------------------------------------------------------------------ ZOMBIE PAYOUT
-
-func _build_payout_screen() -> Control:
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 16)
-	var rank := UpgradeManager.get_payout_rank()
-	var maxed := rank >= UpgradeManager.MAX_RANK
-
-	var list_well := SteelUI.well(10.0)
-	list_well.custom_minimum_size = Vector2(600.0, 0.0)
-	h.add_child(list_well)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 4)
-	list_well.add_child(list)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 14)
-	list.add_child(head)
-	var head_type := SteelUI.label("ZOMBIE TYPE", 18, SteelUI.TEXT_DIM)
-	head_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head_type.custom_minimum_size = Vector2(0.0, 26.0)
-	var head_base := SteelUI.label("BASE", 18, SteelUI.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
-	head_base.custom_minimum_size = Vector2(80.0, 0.0)
-	var head_pay := SteelUI.label("PAYS / KILL", 18, SteelUI.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
-	head_pay.custom_minimum_size = Vector2(170.0, 0.0)
-	head.add_child(SteelUI.spacer(14.0))
-	head.add_child(head_type)
-	head.add_child(head_base)
-	head.add_child(head_pay)
-	head.add_child(SteelUI.spacer(10.0))
-	head.get_child(0).size_flags_horizontal = Control.SIZE_FILL
-	head.get_child(4).size_flags_horizontal = Control.SIZE_FILL
-	for entry in UpgradeManager.ZOMBIE_TYPES:
-		list.add_child(_payout_row(entry, rank))
-
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 10)
-	h.add_child(right)
-	var mult_well := SteelUI.well(16.0)
-	right.add_child(mult_well)
-	var mult_v := VBoxContainer.new()
-	mult_well.add_child(mult_v)
-	mult_v.add_child(SteelUI.label("KILL PAYOUT MULTIPLIER", 20, SteelUI.TEXT_DIM))
-	var mult_h := HBoxContainer.new()
-	mult_v.add_child(mult_h)
-	mult_h.add_child(SteelUI.label("x%.2f" % UpgradeManager.get_earnings_multiplier(), 72, SteelUI.GREEN))
-	mult_h.add_child(SteelUI.spacer())
-	mult_h.add_child(SteelUI.label("MAXED" if maxed else "NEXT  x%.2f" % UpgradeManager.PAYOUT_MULTIPLIERS[rank + 1],
-		30, SteelUI.GREEN if maxed else SteelUI.GREEN_SOFT, HORIZONTAL_ALIGNMENT_RIGHT))
-
-	# Multiplier bar: one plate per rank, lit up to the installed rank.
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 6)
-	right.add_child(bar)
-	for i in UpgradeManager.PAYOUT_MULTIPLIERS.size():
-		var seg := PanelContainer.new()
-		seg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		seg.custom_minimum_size = Vector2(0.0, 64.0)
-		var lit := i <= rank
-		var is_next := i == rank + 1
-		var box := SteelUI.flat(SteelUI.GREEN_DARK if lit else Color(0.06, 0.065, 0.06),
-			SteelUI.GREEN if lit else (SteelUI.GREEN_SOFT if is_next else Color(0.25, 0.27, 0.25)), 2)
-		if lit:
-			box.shadow_color = Color(SteelUI.GREEN.r, SteelUI.GREEN.g, SteelUI.GREEN.b, 0.35)
-			box.shadow_size = 5
-		seg.add_theme_stylebox_override("panel", box)
-		seg.add_child(SteelUI.label("x%.2f" % UpgradeManager.PAYOUT_MULTIPLIERS[i], 22,
-			SteelUI.GREEN if lit else (SteelUI.GREEN_SOFT if is_next else SteelUI.LOCKED), HORIZONTAL_ALIGNMENT_CENTER))
-		bar.add_child(seg)
-
-	var note := SteelUI.well(14.0)
-	note.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right.add_child(note)
-	var note_text := SteelUI.label(
-		"EVERY KILL PAYS ITS BASE BOUNTY x THE MULTIPLIER, BANKED THE MOMENT IT DROPS. INSTALL BUYS THE NEXT MULTIPLIER ONLY.",
-		20, SteelUI.TEXT_DIM)
-	note_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	note.add_child(note_text)
-
-	_set_footer("PAYOUT RANK %d  //  x%.2f" % [mini(rank + 1, UpgradeManager.MAX_RANK),
-		UpgradeManager.PAYOUT_MULTIPLIERS[mini(rank + 1, UpgradeManager.MAX_RANK)]],
-		UpgradeManager.get_payout_cost(), "MAXED")
-	return h
-
-
-func _payout_row(entry: Dictionary, rank: int) -> Control:
-	var unlocked := bool(entry.get("unlocked", false))
-	var row := PanelContainer.new()
-	row.custom_minimum_size = Vector2(0.0, 50.0)
-	row.add_theme_stylebox_override("panel", SteelUI.plate("row_steel.png", 14.0, 0.0))
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var c := HBoxContainer.new()
-	c.add_theme_constant_override("separation", 14)
-	var pad := MarginContainer.new()
-	pad.add_theme_constant_override("margin_left", 22)
-	pad.add_theme_constant_override("margin_right", 22)
-	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pad.add_child(c)
-	row.add_child(pad)
-	var tint := SteelUI.TEXT_LIGHT if unlocked else SteelUI.LOCKED
-	c.add_child(SteelUI.icon("icon_skull.svg" if unlocked else "icon_lock.svg", 30.0, tint))
-	var name_label := SteelUI.label(String(entry.get("name", "")), 24, tint)
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	c.add_child(name_label)
-	var base := SteelUI.label(SteelUI.money(int(entry.get("base_reward", 0))) if unlocked else "--", 22, SteelUI.TEXT_DIM if unlocked else SteelUI.LOCKED, HORIZONTAL_ALIGNMENT_RIGHT)
-	base.custom_minimum_size = Vector2(80.0, 0.0)
-	c.add_child(base)
-	var pays := SteelUI.label("--", 26, SteelUI.LOCKED, HORIZONTAL_ALIGNMENT_RIGHT)
-	pays.custom_minimum_size = Vector2(170.0, 0.0)
-	if unlocked:
-		var reward := UpgradeManager.get_zombie_reward(String(entry["id"]))
-		pays.text = SteelUI.money(reward)
-		pays.add_theme_color_override("font_color", SteelUI.AMBER)
-		if rank < UpgradeManager.MAX_RANK:
-			var next := int(round(float(entry["base_reward"]) * UpgradeManager.PAYOUT_MULTIPLIERS[rank + 1]))
-			pays.text = "%s  >  %s" % [SteelUI.money(reward), SteelUI.money(next)]
-	c.add_child(pays)
-	return row
+	_rebuild()
