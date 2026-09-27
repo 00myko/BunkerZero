@@ -12,11 +12,16 @@ const GUNS := {
 	"sawnoff": "res://assets/Weapons/sawnoff_animated.glb",
 	"lmg": "res://assets/Weapons/lmg_animated.glb",
 	"grenade_launcher": "res://assets/Weapons/grenadelauncher_animated.glb",
+	"sawnoffs": "res://assets/Weapons/sawnoffs_animated.glb",
+	"crossbow": "res://assets/Weapons/crossbow_animated.glb",
+	"knife": "res://assets/Weapons/knife_animated.glb",
 }
 var only: PackedStringArray = []
 var side := {}   # id -> +1 / -1 camera side
 ## Loose parts that float away from the gun at rest (ejected casings).
 const HIDE := {"pistol": ["shell_1"]}
+## Seconds into the model's animation clip to pose it (idle/loaded frame).
+const POSE := {"minigun": 0.25, "crossbow": 3.30}
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT)
@@ -58,7 +63,13 @@ func _render(id: String) -> void:
 	var model: Node3D = (load(GUNS[id]) as PackedScene).instantiate()
 	root.add_child(model)
 	for ap in model.find_children("*", "AnimationPlayer", true, false):
-		(ap as AnimationPlayer).stop()
+		var player := ap as AnimationPlayer
+		player.stop()
+		if POSE.has(id) and not player.get_animation_list().is_empty():
+			player.play(player.get_animation_list()[0])
+			player.seek(float(POSE[id]), true)
+			player.pause()
+	await _frames(2)
 	var box := AABB()
 	var first := true
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
