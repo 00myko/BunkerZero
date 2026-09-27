@@ -45,10 +45,14 @@ const HUD_SHOOT_FALLBACK_PATH: String = "res://assets/Game UI Art/V51/HUD_Shoot.
 @onready var death_vignette: ColorRect = $DeathSequenceOverlay/DeathVignette
 @onready var death_top_mask: ColorRect = $DeathSequenceOverlay/TopEyelid
 @onready var death_bottom_mask: ColorRect = $DeathSequenceOverlay/BottomEyelid
-@onready var game_over_overlay: Control = $GameOverOverlay
-@onready var game_over_stats_label: Label = $GameOverOverlay/Center/Panel/Margin/VBox/StatsLabel
-@onready var retry_button: Button = $GameOverOverlay/Center/Panel/Margin/VBox/RetryButton
-@onready var game_over_menu_button: Button = $GameOverOverlay/Center/Panel/Margin/VBox/MainMenuButton
+## RUN ENDED plate, built in code by _build_game_over().
+var game_over_overlay: Control = null
+var retry_button: Button = null
+var game_over_menu_button: Button = null
+## Kept for player.gd's binding; the plate has per-stat labels instead.
+var game_over_stats_label: Label = null
+var _game_over_stage: Control = null
+var _game_over_values: Dictionary = {}
 @onready var crosshair: Label = $Crosshair
 @onready var door_interact_button: Button = get_node_or_null("DoorInteractButton") as Button
 
@@ -92,13 +96,8 @@ func _ready() -> void:
 		var stamina_style := sprint_bar_fill.get_theme_stylebox("panel") as StyleBoxFlat
 		if stamina_style != null:
 			sprint_bar_fill.add_theme_stylebox_override("panel", stamina_style.duplicate())
-	if retry_button != null and not retry_button.pressed.is_connected(_on_retry_pressed):
-		retry_button.pressed.connect(_on_retry_pressed)
-	if game_over_menu_button != null and not game_over_menu_button.pressed.is_connected(_on_main_menu_pressed):
-		game_over_menu_button.pressed.connect(_on_main_menu_pressed)
+	_build_game_over()
 	death_overlay.visible = false
-	game_over_overlay.visible = false
-	game_over_overlay.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	death_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_room_cleared_banner()
 	_setup_door_interaction()
@@ -737,9 +736,23 @@ func restore_after_death(show_mobile: bool) -> void:
 		death_vignette.modulate.a = 0.0
 	configure_mobile_visibility(show_mobile, shoot_button != null and shoot_button.visible)
 
-func show_game_over(stats_text: String) -> void:
-	if game_over_stats_label != null:
-		game_over_stats_label.text = stats_text
+## `stats_text` is kept for callers; the plate reads RunManager's run summary.
+func show_game_over(_stats_text: String = "") -> void:
+	var summary := RunManager.get_run_summary()
+	var seconds := int(summary.get("time", 0.0))
+	var earned := int(summary.get("earnings", 0))
+	var values := {
+		"room": "ROOM %d" % maxi(1, int(summary.get("room", 1))),
+		"kills": str(int(summary.get("kills", 0))),
+		"accuracy": "%d%%" % int(round(float(summary.get("accuracy", 0.0)))),
+		"time": "%d:%02d" % [seconds / 60, seconds % 60],
+		"earned": SteelUI.money(earned),
+		# Kill pay is banked on the kill, so a death keeps all of it.
+		"kept": SteelUI.money(earned),
+	}
+	for key in values:
+		if _game_over_values.has(key):
+			(_game_over_values[key] as Label).text = values[key]
 	if pause_button != null:
 		pause_button.visible = false
 	if shoot_button != null:
@@ -747,12 +760,122 @@ func show_game_over(stats_text: String) -> void:
 	if jump_button != null:
 		jump_button.visible = false
 	if game_over_overlay != null:
+		_layout_game_over()
 		game_over_overlay.visible = true
 
 func hide_game_over(show_mobile: bool, pistol_equipped: bool) -> void:
 	if game_over_overlay != null:
 		game_over_overlay.visible = false
 	configure_mobile_visibility(show_mobile, pistol_equipped)
+
+## RUN ENDED: dimmed live 3D, the pause menu's red stripe, a riveted steel
+## plate with the run's numbers, RETRY ROOM (green) + MAIN MENU.
+func _build_game_over() -> void:
+	game_over_overlay = Control.new()
+	game_over_overlay.name = "GameOverOverlay"
+	game_over_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	game_over_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	game_over_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	game_over_overlay.z_index = 950
+	game_over_overlay.visible = false
+	add_child(game_over_overlay)
+	game_over_overlay.resized.connect(_layout_game_over)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.0, 0.0, 0.58)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	game_over_overlay.add_child(dim)
+
+	_game_over_stage = Control.new()
+	_game_over_stage.name = "Stage"
+	_game_over_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	game_over_overlay.add_child(_game_over_stage)
+
+	# Red PAUSED stripe, as on the pause menu. Overhangs the stage so it spans
+	# wide phones edge to edge; its text stays centred on the plate.
+	var stripe := PanelContainer.new()
+	stripe.name = "PausedStripe"
+	stripe.position = Vector2(-SteelUI.DESIGN.x, 52.0)
+	stripe.size = Vector2(SteelUI.DESIGN.x * 3.0, 58.0)
+	var stripe_box := SteelUI.flat(Color(0.20, 0.015, 0.015, 0.88))
+	stripe_box.border_color = SteelUI.RED
+	stripe_box.border_width_top = 2
+	stripe_box.border_width_bottom = 2
+	stripe.add_theme_stylebox_override("panel", stripe_box)
+	_game_over_stage.add_child(stripe)
+	var stripe_row := HBoxContainer.new()
+	stripe_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	stripe_row.add_theme_constant_override("separation", 28)
+	stripe.add_child(stripe_row)
+	stripe_row.add_child(SteelUI.label("PAUSED", 38, SteelUI.RED))
+	stripe_row.add_child(SteelUI.label("//", 30, Color(SteelUI.RED.r, SteelUI.RED.g, SteelUI.RED.b, 0.6)))
+	stripe_row.add_child(SteelUI.label("SURVIVOR DOWN", 38, SteelUI.RED))
+
+	var panel := PanelContainer.new()
+	panel.name = "SteelPlate"
+	panel.size = Vector2(820.0, 540.0)
+	panel.position = Vector2((SteelUI.DESIGN.x - 820.0) * 0.5, 138.0)
+	panel.add_theme_stylebox_override("panel", SteelUI.plate("panel_steel.png", 40.0, 36.0))
+	_game_over_stage.add_child(panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 14)
+	panel.add_child(column)
+
+	var title := TextureRect.new()
+	title.texture = SteelUI.tex(SteelUI.ART + "title_run_ended.png")
+	title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	title.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	title.custom_minimum_size = Vector2(0.0, 64.0)
+	column.add_child(title)
+	var rule := ColorRect.new()
+	rule.custom_minimum_size = Vector2(0.0, 2.0)
+	rule.color = Color(SteelUI.GREEN.r, SteelUI.GREEN.g, SteelUI.GREEN.b, 0.35)
+	column.add_child(rule)
+
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 10)
+	column.add_child(grid)
+	_game_over_values.clear()
+	for stat in [
+		["room", "ROOM REACHED"], ["kills", "KILLS"],
+		["accuracy", "ACCURACY"], ["time", "TIME"],
+		["earned", "$ THIS RUN"], ["kept", "$ KEPT"],
+	]:
+		var cell := SteelUI.well(12.0)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		var row := HBoxContainer.new()
+		cell.add_child(row)
+		row.add_child(SteelUI.label(stat[1], 22, SteelUI.TEXT_DIM))
+		row.add_child(SteelUI.spacer())
+		var money_stat: bool = stat[0] == "earned" or stat[0] == "kept"
+		var value := SteelUI.label("--", 34, SteelUI.AMBER if money_stat else SteelUI.TEXT_LIGHT, HORIZONTAL_ALIGNMENT_RIGHT)
+		row.add_child(value)
+		_game_over_values[stat[0]] = value
+		grid.add_child(cell)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 20)
+	column.add_child(buttons)
+	retry_button = SteelUI.action_button("RETRY ROOM", true, Vector2(330.0, 72.0))
+	retry_button.name = "RetryButton"
+	retry_button.pressed.connect(_on_retry_pressed)
+	buttons.add_child(retry_button)
+	game_over_menu_button = SteelUI.action_button("MAIN MENU", false, Vector2(330.0, 72.0))
+	game_over_menu_button.name = "MainMenuButton"
+	game_over_menu_button.pressed.connect(_on_main_menu_pressed)
+	buttons.add_child(game_over_menu_button)
+
+
+func _layout_game_over() -> void:
+	if _game_over_stage != null:
+		SteelUI.fit_stage(_game_over_stage, get_viewport().get_visible_rect().size)
+
 
 func _build_room_cleared_banner() -> void:
 	room_cleared_banner = PanelContainer.new()

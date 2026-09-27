@@ -1,11 +1,12 @@
 extends Node3D
 
-## World-side upgrade interaction. The popup/prompt layout lives in
-## scenes/ui/upgrade_terminal.tscn.
+## World-side upgrade interaction: finds the three hub tables, shows the
+## proximity prompt, pauses the hub while a table is open and routes INSTALL.
+## What each table shows and sells is data in UpgradeManager; the plate itself
+## is built by scripts/ui/upgrade_terminal.gd.
 
 const INTERACTION_LAYER: int = 1 << 20
 const MAX_INTERACTION_DISTANCE: float = 3.65
-const AMBER := Color(1.0, 0.56, 0.14, 1.0)
 
 var player: CharacterBody3D = null
 var interaction_areas: Array[Area3D] = []
@@ -28,8 +29,8 @@ func _setup() -> void:
 			terminal.prompt_pressed.connect(_open_nearby_upgrade)
 		if not terminal.close_pressed.is_connected(close_popup):
 			terminal.close_pressed.connect(close_popup)
-		if not terminal.buy_pressed.is_connected(_purchase_active_upgrade):
-			terminal.buy_pressed.connect(_purchase_active_upgrade)
+		if not terminal.install_pressed.is_connected(_purchase_active_upgrade):
+			terminal.install_pressed.connect(_purchase_active_upgrade)
 	_create_interaction_area("weapon", "Weapons Upgrde Table")
 	_create_interaction_area("survivor", "Health Upgrades Table")
 	_create_interaction_area("earnings", "Zombie Multiplier Table")
@@ -91,17 +92,7 @@ func _update_nearby_table() -> void:
 	if nearby_upgrade_type.is_empty():
 		terminal.set_prompt_visible(false)
 	else:
-		terminal.set_prompt_visible(true, "TAP TO ACCESS  //  %s" % _table_display_name(nearby_upgrade_type))
-
-func _table_display_name(upgrade_type: String) -> String:
-	match upgrade_type:
-		"weapon":
-			return "WEAPON SYSTEMS"
-		"survivor":
-			return "SURVIVOR VITALS"
-		"earnings":
-			return "ZOMBIE PAYOUT"
-	return "UPGRADE TERMINAL"
+		terminal.set_prompt_visible(true, "TAP TO ACCESS  //  %s" % terminal.table_name(nearby_upgrade_type))
 
 func is_popup_open() -> bool:
 	return terminal != null and terminal.is_popup_open()
@@ -149,8 +140,7 @@ func open_upgrade(upgrade_type: String) -> void:
 	if terminal == null or upgrade_type.is_empty():
 		return
 	active_upgrade_type = upgrade_type
-	_refresh_popup()
-	terminal.open_popup()
+	terminal.open_popup(upgrade_type)
 	if player != null and player.has_method("set_upgrade_modal_active"):
 		player.call("set_upgrade_modal_active", true)
 	get_tree().paused = true
@@ -167,71 +157,12 @@ func close_popup() -> void:
 	if not _is_mobile():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
-func _refresh_popup() -> void:
-	if terminal == null:
-		return
-	terminal.bank_label.text = "PLAYER BANK   $%d" % EconomyManager.get_balance()
-	var cost := UpgradeManager.get_next_cost(active_upgrade_type)
-	var maxed := cost < 0
-	terminal.buy_button.disabled = maxed or not EconomyManager.can_afford(cost)
-	terminal.buy_button.text = "MAXIMUM LEVEL" if maxed else "INSTALL UPGRADE"
-	terminal.cost_label.text = "ALL UPGRADES INSTALLED" if maxed else "UPGRADE COST   $%d" % cost
-
-	var level := 0
-	var accent := AMBER
-	match active_upgrade_type:
-		"weapon":
-			level = UpgradeManager.weapon_level
-			var current_damage := UpgradeManager.get_pistol_damage()
-			var next_damage := current_damage if maxed else UpgradeManager.PISTOL_DAMAGE_BY_LEVEL[level + 1]
-			terminal.category_label.text = "A R M O R Y   / /   B A L L I S T I C S"
-			terminal.title_label.text = "WEAPON SYSTEMS"
-			terminal.subtitle_label.text = "P I S T O L   P E R F O R M A N C E   T U N I N G"
-			terminal.level_label.text = "WEAPON LEVEL   %d / 5" % level
-			terminal.current_caption.text = "CURRENT DAMAGE"
-			terminal.current_value.text = "%.0f  DMG" % current_damage
-			terminal.next_caption.text = "NEXT DAMAGE"
-			terminal.next_value.text = "MAX" if maxed else "%.0f  DMG" % next_damage
-			terminal.description_label.text = "INCREASE BALLISTIC DAMAGE FOR EVERY PISTOL ROUND."
-		"survivor":
-			accent = Color(0.93, 0.25, 0.16, 1.0)
-			level = UpgradeManager.survivor_level
-			var current_health := 100.0 + UpgradeManager.get_health_bonus()
-			var next_health := current_health if maxed else 100.0 + UpgradeManager.HEALTH_BONUS_BY_LEVEL[level + 1]
-			terminal.category_label.text = "M E D I C A L   / /   B I O - S U P P O R T"
-			terminal.title_label.text = "SURVIVOR VITALS"
-			terminal.subtitle_label.text = "H E A L T H   A N D   R E S I L I E N C E"
-			terminal.level_label.text = "VITALS LEVEL   %d / 5" % level
-			terminal.current_caption.text = "CURRENT MAX HEALTH"
-			terminal.current_value.text = "%.0f  HP" % current_health
-			terminal.next_caption.text = "NEXT MAX HEALTH"
-			terminal.next_value.text = "MAX" if maxed else "%.0f  HP" % next_health
-			terminal.description_label.text = "FORTIFY MAXIMUM HEALTH FOR EVERY FUTURE RUN."
-		"earnings":
-			accent = Color(0.95, 0.68, 0.16, 1.0)
-			level = UpgradeManager.earnings_level
-			var current_multiplier := UpgradeManager.get_earnings_multiplier()
-			var next_multiplier := current_multiplier if maxed else UpgradeManager.EARNINGS_MULTIPLIERS[level + 1]
-			terminal.category_label.text = "E C O N O M Y   / /   R E C O V E R Y"
-			terminal.title_label.text = "ZOMBIE PAYOUT"
-			terminal.subtitle_label.text = "C R E D I T   R E C O V E R Y   M U L T I P L I E R"
-			terminal.level_label.text = "PAYOUT LEVEL   %d / 5" % level
-			terminal.current_caption.text = "CURRENT PAYOUT"
-			terminal.current_value.text = "%.2fx" % current_multiplier
-			terminal.next_caption.text = "NEXT PAYOUT"
-			terminal.next_value.text = "MAX" if maxed else "%.2fx" % next_multiplier
-			terminal.description_label.text = "MULTIPLY ALL CREDITS RECOVERED FROM ZOMBIE KILLS."
-
-	terminal.apply_accent(accent)
-	terminal.set_level_segments(level, accent)
-
 func _purchase_active_upgrade() -> void:
-	if active_upgrade_type.is_empty():
+	if terminal == null or active_upgrade_type.is_empty():
 		return
-	if UpgradeManager.purchase(active_upgrade_type):
+	if terminal.purchase_selected():
 		if player != null and player.has_method("refresh_persistent_upgrades"):
 			player.call("refresh_persistent_upgrades")
-	_refresh_popup()
 
 func _is_mobile() -> bool:
 	return OS.has_feature("mobile") or OS.get_name() == "iOS" or OS.get_name() == "Android"

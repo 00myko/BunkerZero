@@ -257,7 +257,6 @@ extends CharacterBody3D
 @export_category("Pistol Firing")
 # Press-and-hold remains available for mobile accessibility, but each shot must
 # finish its slide/recoil recovery before another trigger cycle can begin.
-@export_range(0.18, 0.60, 0.01) var pistol_shot_interval: float = 0.26
 @export var pistol_hand_recoil_strength: float = 0.86
 @export var pistol_camera_recoil_degrees: float = 1.05
 ## The authored pistol "sprint" clip holds the gun at the face, off-frame.
@@ -352,14 +351,6 @@ const PISTOL_READY_ANIMATION: StringName = &"ready_to_fire"
 const PISTOL_SPRINT_ANIMATION: StringName = &"sprint"
 const PISTOL_FIRE_SPEED := 1.22
 const PISTOL_RELOAD_SPEED := 1.05
-const PISTOL_MAG_CAPACITY := 8
-const PISTOL_STARTING_TOTAL_AMMO := 120
-const UZI_MAG_CAPACITY := 24
-const UZI_STARTING_TOTAL_AMMO := 192
-const UZI_SHOT_INTERVAL := 0.065
-const SHOTGUN_MAG_CAPACITY := 6
-const SHOTGUN_STARTING_TOTAL_AMMO := 42
-const SHOTGUN_SHOT_INTERVAL := 1.12
 const SHOTGUN_ANIM := &"allanims"
 const SHOTGUN_FIRE_START := 0.00
 const SHOTGUN_FIRE_END := 0.46
@@ -608,8 +599,9 @@ var sprint_was_active := false
 var muzzle_flash_time := 0.0
 var shot_cooldown := 0.0
 var aim_hold_timer := 0.0
-var ammo := PISTOL_MAG_CAPACITY
-var reserve_ammo := PISTOL_STARTING_TOTAL_AMMO - PISTOL_MAG_CAPACITY
+# Filled from UpgradeManager's weapon table when a gun is equipped.
+var ammo := 0
+var reserve_ammo := 0
 var unlimited_ammo := false
 var is_reloading: bool = false
 var reload_timer: float = 0.0
@@ -4272,23 +4264,9 @@ func _apply_uzi_sight_alignment(eased_blend: float) -> void:
 	viewmodel_visual.scale = Vector3.ONE * (lerpf(viewmodel_tune_scale, uzi_ready_scale, t) * depth)
 
 
+## Base stats and hub upgrade ranks both live in UpgradeManager's weapon table.
 func _weapon_starting_ammo(weapon_id: String) -> Dictionary:
-	if _is_extra_weapon(weapon_id):
-		return _extra_starting_ammo(weapon_id)
-	if weapon_id == "uzi":
-		return {
-			"mag": UZI_MAG_CAPACITY,
-			"reserve": UZI_STARTING_TOTAL_AMMO - UZI_MAG_CAPACITY,
-		}
-	if weapon_id == "shotgun":
-		return {
-			"mag": SHOTGUN_MAG_CAPACITY,
-			"reserve": SHOTGUN_STARTING_TOTAL_AMMO - SHOTGUN_MAG_CAPACITY,
-		}
-	return {
-		"mag": PISTOL_MAG_CAPACITY,
-		"reserve": PISTOL_STARTING_TOTAL_AMMO - PISTOL_MAG_CAPACITY,
-	}
+	return UpgradeManager.get_weapon_starting_ammo(weapon_id)
 
 
 func _ensure_weapon_ammo(weapon_id: String) -> void:
@@ -4324,23 +4302,11 @@ func _restore_weapon_ammo(weapon_id: String) -> void:
 
 
 func _weapon_mag_capacity(weapon_id: String = current_weapon_id) -> int:
-	if _is_extra_weapon(weapon_id):
-		return _extra_mag_capacity(weapon_id)
-	if weapon_id == "uzi":
-		return UZI_MAG_CAPACITY
-	if weapon_id == "shotgun":
-		return SHOTGUN_MAG_CAPACITY
-	return PISTOL_MAG_CAPACITY
+	return UpgradeManager.get_weapon_mag(weapon_id)
 
 
 func _weapon_shot_interval() -> float:
-	if _is_extra_weapon():
-		return _extra_shot_interval(current_weapon_id)
-	if current_weapon_id == "uzi":
-		return UZI_SHOT_INTERVAL
-	if current_weapon_id == "shotgun":
-		return SHOTGUN_SHOT_INTERVAL
-	return maxf(pistol_shot_interval, 0.18)
+	return UpgradeManager.get_weapon_shot_interval(current_weapon_id)
 
 
 func _weapon_depth_factor() -> float:
@@ -4643,6 +4609,8 @@ func _start_reload(from_pending: bool = false) -> void:
 		empty_reload = ammo <= 0
 		reload_clip = UZI_ANIM_RELOAD_EMPTY if empty_reload else UZI_ANIM_RELOAD
 		reload_speed = 1.0
+	# Reload-speed rank: the same clip, played faster.
+	reload_speed /= UpgradeManager.get_weapon_reload_scale(current_weapon_id)
 	var animation_duration: float = 2.20
 	if viewmodel_anim_player != null and viewmodel_anim_player.has_animation(reload_clip):
 		var reload_animation := viewmodel_anim_player.get_animation(reload_clip)
@@ -4660,6 +4628,10 @@ func _start_reload(from_pending: bool = false) -> void:
 		reload_audio.play()
 
 
+func _shotgun_insert_time() -> float:
+	return SHOTGUN_RELOAD_INSERT_TIME * UpgradeManager.get_weapon_reload_scale("shotgun")
+
+
 func _start_shotgun_reload() -> void:
 	shotgun_reload_needed = mini(_weapon_mag_capacity() - ammo, reserve_ammo)
 	shotgun_reload_total = shotgun_reload_needed
@@ -4667,9 +4639,10 @@ func _start_shotgun_reload() -> void:
 	if shotgun_reload_needed <= 0:
 		is_reloading = false
 		return
-	var insert_speed := (SHOTGUN_RELOAD_END - SHOTGUN_RELOAD_START) / SHOTGUN_RELOAD_INSERT_TIME
+	var insert_time := _shotgun_insert_time()
+	var insert_speed := (SHOTGUN_RELOAD_END - SHOTGUN_RELOAD_START) / insert_time
 	_play_shotgun_section(&"reload", SHOTGUN_RELOAD_START, SHOTGUN_RELOAD_END, 0.10, insert_speed)
-	reload_timer = SHOTGUN_RELOAD_INSERT_TIME
+	reload_timer = insert_time
 	if shotgun_reload_needed >= 3:
 		_play_shotgun_reload_sequence()
 	elif shotgun_reload_needed == 2 and shotgun_reload_audio != null:
@@ -4793,11 +4766,12 @@ func _finish_shotgun_reload_shell() -> void:
 		shotgun_reload_needed = maxi(0, shotgun_reload_needed - 1)
 		_update_pistol_ammo_display()
 	if shotgun_reload_needed > 0 and reserve_ammo > 0 and ammo < _weapon_mag_capacity():
-		var insert_speed := (SHOTGUN_RELOAD_END - SHOTGUN_RELOAD_START) / SHOTGUN_RELOAD_INSERT_TIME
+		var insert_time := _shotgun_insert_time()
+		var insert_speed := (SHOTGUN_RELOAD_END - SHOTGUN_RELOAD_START) / insert_time
 		_play_shotgun_section(&"reload", SHOTGUN_RELOAD_START, SHOTGUN_RELOAD_END, 0.06, insert_speed)
 		if shotgun_reload_total >= 3 and (shotgun_reload_total - shotgun_reload_needed) >= 2:
 			_play_shotgun_insert_sfx()
-		reload_timer = SHOTGUN_RELOAD_INSERT_TIME
+		reload_timer = insert_time
 		return
 	is_reloading = false
 	reload_timer = 0.0
@@ -7638,9 +7612,6 @@ const EXTRA_VIEWMODEL := {
 }
 
 # --- SAWN-OFFS: two-shot panic blast, forced break-reload.
-const SAWNOFFS_MAG_CAPACITY := 2
-const SAWNOFFS_STARTING_TOTAL_AMMO := 18
-const SAWNOFFS_SHOT_INTERVAL := 0.38
 const SAWNOFFS_PELLETS := 7
 const SAWNOFFS_SPREAD_HIP := 0.090
 const SAWNOFFS_SPREAD_ADS := 0.042
@@ -7662,8 +7633,6 @@ const SAWNOFFS_FLOURISH_CUES := [
 ]
 
 # --- CROSSBOW: one bolt, slow auto-recock, heavy headshots.
-const CROSSBOW_MAG_CAPACITY := 1
-const CROSSBOW_STARTING_TOTAL_AMMO := 14
 # Cut from the allanimations keys. 0.00 is the loaded rest (bolt on the rail,
 # string drawn). Bolt leaves 0.03-0.10, bow settles 0.37 (empty rest).
 # Recock: tilt up 0.50, string 0.97-1.13, lever 1.10-1.47, bolt slid in
@@ -7700,9 +7669,6 @@ const KNIFE_INSPECT_CUES := [
 const KNIFE_QUICK_STAB_TIME := 0.50
 
 # --- MINIGUN: spin-up, huge mag, heavy, no ADS.
-const MINIGUN_MAG_CAPACITY := 100
-const MINIGUN_STARTING_TOTAL_AMMO := 200
-const MINIGUN_SHOT_INTERVAL := 0.050
 const MINIGUN_SPIN_UP_TIME := 0.85
 const MINIGUN_SPIN_DOWN_TIME := 1.10
 const MINIGUN_WALK_MULTIPLIER := 0.82
@@ -7719,9 +7685,6 @@ const MINIGUN_RELOAD_CUES := [
 const MINIGUN_INSPECT_CUES := [[4.30, "minigun_button_click"], [5.33, "minigun_heavy_handling_thud"]]
 
 # --- SMG: compact auto, packed allanim ~7.8s.
-const SMG_MAG_CAPACITY := 28
-const SMG_STARTING_TOTAL_AMMO := 140
-const SMG_SHOT_INTERVAL := 0.092
 # Cut from the allanims keys: carrier cycles 0.03-0.17, gun home 0.27.
 # Empty reload 0.27-2.70 (mag out 0.77, in 1.23-1.33, bolt 1.83-2.20); a
 # second, tactical mag swap 2.70-4.30 is not used. Bolt check 4.30-5.87,
@@ -7735,9 +7698,6 @@ const SMG_RELOAD_CUES := [
 ]
 
 # --- GRENADE LAUNCHER: 6-tube, impact splash, packed allanim ~10.1s.
-const GRENADE_LAUNCHER_MAG_CAPACITY := 6
-const GRENADE_LAUNCHER_STARTING_TOTAL_AMMO := 12
-const GRENADE_LAUNCHER_SHOT_INTERVAL := 0.95
 const GRENADE_LAUNCHER_SPLASH_RADIUS := 3.4
 # Cut from the allanims keys. 0.00 is the closed, loaded rest. Trigger
 # 0.07, cylinder advance 0.30-0.43, gun home 0.45 (the old 0.80 end ran into
@@ -7753,9 +7713,6 @@ const GRENADE_LAUNCHER_RELOAD_CUES := [
 ]
 
 # --- LMG: heavy auto, packed allanim ~14.9s.
-const LMG_MAG_CAPACITY := 50
-const LMG_STARTING_TOTAL_AMMO := 150
-const LMG_SHOT_INTERVAL := 0.100
 # Cut from the allanims keys: bolt cycles 0.03-0.27, gun home 0.33.
 # Reload 0.37-6.10 (bolt back 0.83, lid open 1.93, mag out 2.45, in 3.20,
 # lid shut 4.25, bolt home 5.40-5.67, gun home 6.10). Swing inspect
@@ -7770,9 +7727,6 @@ const LMG_RELOAD_CUES := [
 ]
 
 # --- SAWN-OFF (new GLB, allanim ~9s): two-shell break-action, separate from sawnoffs.
-const SAWNOFF_MAG_CAPACITY := 2
-const SAWNOFF_STARTING_TOTAL_AMMO := 22
-const SAWNOFF_SHOT_INTERVAL := 0.46
 const SAWNOFF_PELLETS := 7
 const SAWNOFF_SPREAD_HIP := 0.052
 const SAWNOFF_SPREAD_ADS := 0.022
@@ -8030,93 +7984,27 @@ func _bump_extra_serial() -> void:
 
 # ------------------------------------------------------------ ammo / stats
 
-func _extra_starting_ammo(weapon_id: String) -> Dictionary:
-	match weapon_id:
-		"sawnoffs":
-			return {"mag": SAWNOFFS_MAG_CAPACITY, "reserve": SAWNOFFS_STARTING_TOTAL_AMMO - SAWNOFFS_MAG_CAPACITY}
-		"crossbow":
-			return {"mag": CROSSBOW_MAG_CAPACITY, "reserve": CROSSBOW_STARTING_TOTAL_AMMO - CROSSBOW_MAG_CAPACITY}
-		"knife":
-			return {"mag": 1, "reserve": 0}
-		"minigun":
-			return {"mag": MINIGUN_MAG_CAPACITY, "reserve": MINIGUN_STARTING_TOTAL_AMMO - MINIGUN_MAG_CAPACITY}
-		"smg":
-			return {"mag": SMG_MAG_CAPACITY, "reserve": SMG_STARTING_TOTAL_AMMO - SMG_MAG_CAPACITY}
-		"grenade_launcher":
-			return {"mag": GRENADE_LAUNCHER_MAG_CAPACITY, "reserve": GRENADE_LAUNCHER_STARTING_TOTAL_AMMO - GRENADE_LAUNCHER_MAG_CAPACITY}
-		"lmg":
-			return {"mag": LMG_MAG_CAPACITY, "reserve": LMG_STARTING_TOTAL_AMMO - LMG_MAG_CAPACITY}
-		"sawnoff":
-			return {"mag": SAWNOFF_MAG_CAPACITY, "reserve": SAWNOFF_STARTING_TOTAL_AMMO - SAWNOFF_MAG_CAPACITY}
-	return {}
-
-
-func _extra_mag_capacity(weapon_id: String) -> int:
-	match weapon_id:
-		"sawnoffs":
-			return SAWNOFFS_MAG_CAPACITY
-		"crossbow":
-			return CROSSBOW_MAG_CAPACITY
-		"knife":
-			return 1
-		"minigun":
-			return MINIGUN_MAG_CAPACITY
-		"smg":
-			return SMG_MAG_CAPACITY
-		"grenade_launcher":
-			return GRENADE_LAUNCHER_MAG_CAPACITY
-		"lmg":
-			return LMG_MAG_CAPACITY
-		"sawnoff":
-			return SAWNOFF_MAG_CAPACITY
-	return PISTOL_MAG_CAPACITY
-
-
-func _extra_shot_interval(weapon_id: String) -> float:
-	match weapon_id:
-		"sawnoffs":
-			return SAWNOFFS_SHOT_INTERVAL
-		"crossbow":
-			return CROSSBOW_FIRE.y - CROSSBOW_FIRE.x
-		"knife":
-			return KNIFE_SLASH_INTERVAL
-		"minigun":
-			return MINIGUN_SHOT_INTERVAL
-		"smg":
-			return SMG_SHOT_INTERVAL
-		"grenade_launcher":
-			return GRENADE_LAUNCHER_SHOT_INTERVAL
-		"lmg":
-			return LMG_SHOT_INTERVAL
-		"sawnoff":
-			return SAWNOFF_SHOT_INTERVAL
-	return maxf(pistol_shot_interval, 0.18)
-
-
 ## Sustained seconds per damage event, reload / recock included. Pause dashboard.
 func _weapon_sustained_interval(weapon_id: String = current_weapon_id) -> float:
+	var mag := float(UpgradeManager.get_weapon_mag(weapon_id))
+	var interval := UpgradeManager.get_weapon_shot_interval(weapon_id)
+	var reload := UpgradeManager.get_weapon_reload_scale(weapon_id)
 	match weapon_id:
 		"sawnoffs":
-			return (SAWNOFFS_FIRE_L.y + (SAWNOFFS_RELOAD.y - SAWNOFFS_RELOAD.x)) / 2.0
+			return (SAWNOFFS_FIRE_L.y + (SAWNOFFS_RELOAD.y - SAWNOFFS_RELOAD.x) * reload) / 2.0
 		"crossbow":
-			return CROSSBOW_RELOAD.y
+			return CROSSBOW_FIRE.y + (CROSSBOW_RELOAD.y - CROSSBOW_FIRE.y) * reload
 		"minigun":
-			return (MINIGUN_MAG_CAPACITY * MINIGUN_SHOT_INTERVAL + MINIGUN_SPIN_UP_TIME + (MINIGUN_RELOAD.y - MINIGUN_RELOAD.x)) / float(MINIGUN_MAG_CAPACITY)
-		"shotgun":
-			return SHOTGUN_SHOT_INTERVAL
-		"uzi":
-			return UZI_SHOT_INTERVAL
-		"knife":
-			return KNIFE_SLASH_INTERVAL
+			return (mag * interval + MINIGUN_SPIN_UP_TIME + (MINIGUN_RELOAD.y - MINIGUN_RELOAD.x) * reload) / mag
 		"smg":
-			return (SMG_MAG_CAPACITY * SMG_SHOT_INTERVAL + (SMG_RELOAD.y - SMG_RELOAD.x)) / float(SMG_MAG_CAPACITY)
+			return (mag * interval + (SMG_RELOAD.y - SMG_RELOAD.x) * reload) / mag
 		"lmg":
-			return (LMG_MAG_CAPACITY * LMG_SHOT_INTERVAL + (LMG_RELOAD.y - LMG_RELOAD.x)) / float(LMG_MAG_CAPACITY)
+			return (mag * interval + (LMG_RELOAD.y - LMG_RELOAD.x) * reload) / mag
 		"grenade_launcher":
-			return GRENADE_LAUNCHER_FIRE.y + (GRENADE_LAUNCHER_RELOAD.y - GRENADE_LAUNCHER_RELOAD.x) / float(GRENADE_LAUNCHER_MAG_CAPACITY)
+			return GRENADE_LAUNCHER_FIRE.y + (GRENADE_LAUNCHER_RELOAD.y - GRENADE_LAUNCHER_RELOAD.x) * reload / mag
 		"sawnoff":
-			return (SAWNOFF_FIRE_L.y + (SAWNOFF_RELOAD.y - SAWNOFF_RELOAD.x)) / 2.0
-	return maxf(pistol_shot_interval, 0.18)
+			return (SAWNOFF_FIRE_L.y + (SAWNOFF_RELOAD.y - SAWNOFF_RELOAD.x) * reload) / 2.0
+	return interval
 
 
 func _extra_display_name(weapon_id: String) -> String:
@@ -8508,40 +8396,40 @@ func _extra_empty_reload_delay() -> float:
 
 # ------------------------------------------------------------ reload
 
+## Packed reload window, sound cues and blend per extra weapon.
+func _extra_reload_section(weapon_id: String) -> Array:
+	match weapon_id:
+		"sawnoffs":
+			return [SAWNOFFS_RELOAD, SAWNOFFS_RELOAD_CUES, 0.06]
+		"crossbow":
+			return [CROSSBOW_RELOAD, CROSSBOW_RELOAD_CUES, 0.04]
+		"minigun":
+			return [MINIGUN_RELOAD, MINIGUN_RELOAD_CUES, 0.08]
+		"smg":
+			return [SMG_RELOAD, SMG_RELOAD_CUES, 0.06]
+		"grenade_launcher":
+			return [GRENADE_LAUNCHER_RELOAD, GRENADE_LAUNCHER_RELOAD_CUES, 0.06]
+		"lmg":
+			return [LMG_RELOAD, LMG_RELOAD_CUES, 0.08]
+		"sawnoff":
+			return [SAWNOFF_RELOAD, SAWNOFF_RELOAD_CUES, 0.06]
+	return []
+
+
 func _start_extra_reload() -> void:
 	_bump_extra_serial()
-	match current_weapon_id:
-		"sawnoffs":
-			_play_packed_section(&"reload", SAWNOFFS_RELOAD.x, SAWNOFFS_RELOAD.y, 0.06, 1.0)
-			_schedule_extra_cues(SAWNOFFS_RELOAD_CUES, SAWNOFFS_RELOAD.x)
-			reload_timer = SAWNOFFS_RELOAD.y - SAWNOFFS_RELOAD.x
-		"crossbow":
-			_play_packed_section(&"reload", CROSSBOW_RELOAD.x, CROSSBOW_RELOAD.y, 0.04, 1.0)
-			_schedule_extra_cues(CROSSBOW_RELOAD_CUES, CROSSBOW_RELOAD.x)
-			reload_timer = CROSSBOW_RELOAD.y - CROSSBOW_RELOAD.x
-		"minigun":
-			_minigun_force_stop(false)
-			_play_packed_section(&"reload", MINIGUN_RELOAD.x, MINIGUN_RELOAD.y, 0.08, 1.0)
-			_schedule_extra_cues(MINIGUN_RELOAD_CUES, MINIGUN_RELOAD.x)
-			reload_timer = MINIGUN_RELOAD.y - MINIGUN_RELOAD.x
-		"smg":
-			_play_packed_section(&"reload", SMG_RELOAD.x, SMG_RELOAD.y, 0.06, 1.0)
-			_schedule_extra_cues(SMG_RELOAD_CUES, SMG_RELOAD.x)
-			reload_timer = SMG_RELOAD.y - SMG_RELOAD.x
-		"grenade_launcher":
-			_play_packed_section(&"reload", GRENADE_LAUNCHER_RELOAD.x, GRENADE_LAUNCHER_RELOAD.y, 0.06, 1.0)
-			_schedule_extra_cues(GRENADE_LAUNCHER_RELOAD_CUES, GRENADE_LAUNCHER_RELOAD.x)
-			reload_timer = GRENADE_LAUNCHER_RELOAD.y - GRENADE_LAUNCHER_RELOAD.x
-		"lmg":
-			_play_packed_section(&"reload", LMG_RELOAD.x, LMG_RELOAD.y, 0.08, 1.0)
-			_schedule_extra_cues(LMG_RELOAD_CUES, LMG_RELOAD.x)
-			reload_timer = LMG_RELOAD.y - LMG_RELOAD.x
-		"sawnoff":
-			_play_packed_section(&"reload", SAWNOFF_RELOAD.x, SAWNOFF_RELOAD.y, 0.06, 1.0)
-			_schedule_extra_cues(SAWNOFF_RELOAD_CUES, SAWNOFF_RELOAD.x)
-			reload_timer = SAWNOFF_RELOAD.y - SAWNOFF_RELOAD.x
-		_:
-			is_reloading = false
+	var section := _extra_reload_section(current_weapon_id)
+	if section.is_empty():
+		is_reloading = false
+		return
+	if current_weapon_id == "minigun":
+		_minigun_force_stop(false)
+	var window: Vector2 = section[0]
+	# Reload-speed rank: the same clip and cues, played faster.
+	var speed := 1.0 / UpgradeManager.get_weapon_reload_scale(current_weapon_id)
+	_play_packed_section(&"reload", window.x, window.y, float(section[2]), speed)
+	_schedule_extra_cues(section[1], window.x, speed)
+	reload_timer = (window.y - window.x) / speed
 
 
 func _finish_extra_reload() -> void:
